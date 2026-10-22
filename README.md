@@ -11,7 +11,7 @@ Lo mostré en X: [Le puse la interfaz de la Wii a mi TV](https://x.com/ProtoMaur
 English: [README.en.md](README.en.md)
 
 El menú cancela los fotogramas programados al pausarse y actualiza el reloj al
-volver. Ver [rendimiento](docs/performance.md) para las pruebas y sus limitaciones.
+volver.
 
 ## Aviso
 

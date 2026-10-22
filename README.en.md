@@ -95,7 +95,7 @@ TV_HOST=192.168.1.50 tools/venv/bin/python tools/music/add.py music.flac --start
 ## Customise
 
 The menu cancels scheduled frames while paused and refreshes its clock when it
-resumes. See [frame scheduling](docs/performance.md) for tests and device-validation limits.
+resumes.
 
 Change what you like and run `launcher/build-and-install.sh` again.
 
