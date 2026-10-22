@@ -4,9 +4,10 @@ import android.content.Context;
 import android.media.AudioAttributes;
 import android.media.SoundPool;
 import android.os.SystemClock;
+import android.util.Log;
 
 /**
- * The channel menu's interface sounds (res/raw/wii_*.wav, synthesised by tools/sounds/make_sounds.py).
+ * The channel menu's interface sounds (res/raw/wii_*.wav).
  * They play on the media stream, so the remote's volume keys set how loud they are.
  */
 final class WiiSounds {
@@ -16,13 +17,15 @@ final class WiiSounds {
     static final int BACK = 3;
     static final int MENU = 4;
     static final int START = 5;
+    static final int BIG_BUTTON = 6;
+    static final int WOOP = 7;
 
     private static final float VOLUME = 0.6f;
 
     private final SoundPool pool;
-    private final int[] ids = new int[6];
+    private final int[] ids = new int[8];
     private final boolean enabled;
-    private final boolean[] muted = new boolean[6];
+    private final boolean[] muted = new boolean[8];
     private volatile long lastPlayed;
 
     WiiSounds(Context context, boolean enabled) {
@@ -39,12 +42,15 @@ final class WiiSounds {
         ids[BACK] = pool.load(context, R.raw.wii_back, 1);
         ids[MENU] = pool.load(context, R.raw.wii_menu, 1);
         ids[START] = pool.load(context, R.raw.wii_start, 1);
+        ids[BIG_BUTTON] = pool.load(context, R.raw.wii_big_buttons, 1);
+        ids[WOOP] = pool.load(context, R.raw.wii_woop, 1);
     }
 
     void play(int which) {
         if (!enabled || ids[which] == 0 || muted[which]) return;
-        pool.play(ids[which], VOLUME, VOLUME, 1, 0, 1f);
+        int stream = pool.play(ids[which], VOLUME, VOLUME, 1, 0, 1f);
         lastPlayed = SystemClock.uptimeMillis();
+        if (stream != 0) Log.d("WiiSounds", "played=" + which + " uptime=" + lastPlayed);
     }
 
     /** Leaves one sound out, e.g. the start sound while the menu music brings its own. */

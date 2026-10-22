@@ -39,7 +39,8 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
 
     private WiiMenuView menu;
     private WiiSounds sounds;
-    private MenuMusic music;
+    private WiiMusic music;
+    private MenuMusic fileMusic;
     /** The welcome screen plays once per boot and whenever the screen comes back on, as at power-on. */
     private boolean introPending;
     private boolean appsDirty = true;
@@ -53,7 +54,8 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            music.stop();
+            music.pause();
+            fileMusic.stop();
             if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) return;
             if (resumed) {
                 introPending = false;
@@ -88,13 +90,16 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         menu.setIntroText(getString(R.string.wii_intro_title), getString(R.string.wii_intro_body),
                 getString(R.string.wii_intro_continue));
         sounds = new WiiSounds(this, getResources().getBoolean(R.bool.wii_sounds));
-        menu.setSounds(sounds);
-        music = new MenuMusic(this, getResources().getBoolean(R.bool.wii_music),
+        music = new WiiMusic(this, getResources().getBoolean(R.bool.wii_music),
+                getResources().getInteger(R.integer.wii_music_volume));
+        music.setTrack(R.raw.wii_menu_music);
+        fileMusic = new MenuMusic(this, getResources().getBoolean(R.bool.wii_music),
                 getResources().getInteger(R.integer.wii_music_volume), sounds);
+        menu.setSounds(sounds);
         menu.setSettingsLabel(getString(R.string.wii_settings_label));
         setContentView(menu);
         menu.requestFocus();
-        introPending = firstStartThisBoot();
+        introPending = firstStartThisBoot() || getIntent().getBooleanExtra("show_intro", false);
         if (getIntent().getBooleanExtra(EXTRA_REF_POSE, false)) {
             introPending = false;
             menu.setRefPose(true);
@@ -126,19 +131,20 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         menu.start();
         if (introPending) {
             introPending = false;
+            music.pause();
             menu.playIntro();
+        } else if (!menu.isIntroShowing()) {
+            playMenuMusic(false);
         }
-        // The music's start jingle takes the place of the menu's own start sound.
-        sounds.mute(WiiSounds.START, music.hasStart());
-        if (!menu.introShowing()) music.play(false);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         resumed = false;
+        music.pause();
+        fileMusic.stop();
         menu.stop();
-        music.stop();
     }
 
     @Override
@@ -146,8 +152,33 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         super.onDestroy();
         unregisterReceiver(screenReceiver);
         unregisterReceiver(packageReceiver);
-        music.stop();
         sounds.release();
+        music.release();
+        fileMusic.stop();
+    }
+
+    @Override
+    public void onIntroDismissed() {
+        if (resumed) playMenuMusic(true);
+    }
+
+    /** User-installed menu music takes precedence over the bundled track. */
+    private void playMenuMusic(boolean withStart) {
+        if (!getResources().getBoolean(R.bool.wii_music)
+                || getResources().getInteger(R.integer.wii_music_volume) <= 0) {
+            if (withStart) sounds.play(WiiSounds.START);
+            return;
+        }
+        if (fileMusic.hasMusic()) {
+            music.pause();
+            if (withStart && !fileMusic.hasStart()) sounds.play(WiiSounds.START);
+            fileMusic.play(withStart);
+        } else {
+            fileMusic.stop();
+            if (withStart) music.startWithJingle(
+                    getResources().getBoolean(R.bool.wii_sounds) ? R.raw.wii_start : 0, 1000L);
+            else music.resume();
+        }
     }
 
     @Override
@@ -160,6 +191,7 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         menu.closeMenu();
+        if (intent.getBooleanExtra("show_intro", false)) introPending = true;
         if (intent.getBooleanExtra(EXTRA_REF_POSE, false)) {
             introPending = false;
             menu.setRefPose(true);
@@ -271,12 +303,6 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     @Override
     public void onChannel(WiiMenuView.Channel channel) {
         open(channel.intent);
-    }
-
-    @Override
-    public void onIntroDismissed() {
-        // As at power-on on the console: the start jingle and the music come in with the menu.
-        if (resumed) music.play(true);
     }
 
     @Override

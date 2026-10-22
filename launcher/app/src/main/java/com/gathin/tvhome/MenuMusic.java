@@ -48,6 +48,11 @@ final class MenuMusic {
     }
 
     /** True when the music comes with its start jingle, which then takes the place of the menu's start sound. */
+    boolean hasMusic() {
+        File loop = file(LOOP);
+        return enabled && gain > 0f && loop != null && loop.isFile();
+    }
+
     boolean hasStart() {
         File loop = file(LOOP), start = file(START);
         return enabled && loop != null && loop.isFile() && start != null && start.isFile();
@@ -128,12 +133,20 @@ final class MenuMusic {
                 byte[] jraw = new byte[BLOCK * ch * 2];
                 short[] out = new short[BLOCK * ch];
                 long pos = 0, jpos = 0;
+                long leadIn = jingle == null ? 0 : wav.rate;
                 float fade = 1f, step = 1f / (FADE_OUT_S * wav.rate);
                 track.play();
                 boolean done = false;
                 while (alive && !done) {
                     int got = 0;
                     while (got < BLOCK) {
+                        if (leadIn > 0) {
+                            int n = (int) Math.min(BLOCK - got, leadIn);
+                            java.util.Arrays.fill(raw, got * ch * 2, (got + n) * ch * 2, (byte) 0);
+                            got += n;
+                            leadIn -= n;
+                            continue;
+                        }
                         if (pos >= wav.loopEnd) {
                             pos = wav.loopStart;
                             in.seek(wav.dataOffset + pos * ch * 2);

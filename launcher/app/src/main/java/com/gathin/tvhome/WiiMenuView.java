@@ -56,7 +56,6 @@ public class WiiMenuView extends View {
         void onSettingsButton();
         void onSdButton();
         void onInputsButton();
-        /** The welcome screen started to leave: the menu is coming up, as after power-on. */
         void onIntroDismissed();
     }
 
@@ -259,6 +258,24 @@ public class WiiMenuView extends View {
         }
     };
     private final Runnable autoContinue = this::dismissIntro;
+    private final Runnable hoverSound = () -> {
+        if (started && hasWindowFocus() && !isIntroShowing() && !menuOpen
+                && focus >= 0 && focus < channels.size()) sound(WiiSounds.WOOP);
+    };
+
+    private void scheduleHoverSound() {
+        removeCallbacks(hoverSound);
+        int delay = getResources().getInteger(R.integer.wii_hover_delay_ms);
+        if (delay > 0 && started && !refPose && !isIntroShowing() && !menuOpen
+                && focus >= 0 && focus < channels.size()) postDelayed(hoverSound, delay);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasWindowFocus) {
+        super.onWindowFocusChanged(hasWindowFocus);
+        if (hasWindowFocus) scheduleHoverSound();
+        else removeCallbacks(hoverSound);
+    }
 
     WiiMenuView(Context context, Listener listener) {
         super(context);
@@ -309,6 +326,7 @@ public class WiiMenuView extends View {
         }
         stillGen++;
         invalidate();
+        scheduleHoverSound();
     }
 
     void setIntroText(String title, String body, String cont) {
@@ -325,6 +343,7 @@ public class WiiMenuView extends View {
 
     /** Freezes the screen in the state of the reference capture (2:07 PM, Fri 3/22, hand on the date). */
     void setRefPose(boolean on) {
+        removeCallbacks(hoverSound);
         refPose = on;
         if (on) {
             colonOn = false;
@@ -345,6 +364,7 @@ public class WiiMenuView extends View {
         removeCallbacks(blink);
         if (!refPose) postDelayed(blink, 1000);
         if (introAlpha > 0f && !introLeaving) postDelayed(autoContinue, INTRO_AUTO_MS);
+        scheduleHoverSound();
         invalidate();
     }
 
@@ -352,10 +372,12 @@ public class WiiMenuView extends View {
         started = false;
         removeCallbacks(blink);
         removeCallbacks(autoContinue);
+        removeCallbacks(hoverSound);
     }
 
     void playIntro() {
         if (refPose) return;
+        removeCallbacks(hoverSound);
         menuOpen = false;
         menuAlpha = 0f;
         introAlpha = 1f;
@@ -371,17 +393,18 @@ public class WiiMenuView extends View {
         if (introAlpha <= 0f || introLeaving) return;
         introLeaving = true;
         removeCallbacks(autoContinue);
-        invalidate();
         listener.onIntroDismissed();
+        scheduleHoverSound();
+        invalidate();
     }
 
-    /** True while the welcome screen is up and not yet leaving. */
-    boolean introShowing() {
+    boolean isIntroShowing() {
         return introAlpha > 0f && !introLeaving;
     }
 
     void showMenu(String title, List<MenuItem> items) {
         if (items.isEmpty()) return;
+        removeCallbacks(hoverSound);
         menuTitle = title;
         menuItems = new ArrayList<>(items);
         menuFocus = 0;
@@ -393,6 +416,7 @@ public class WiiMenuView extends View {
 
     void closeMenu() {
         menuOpen = false;
+        scheduleHoverSound();
         invalidate();
     }
 
@@ -450,7 +474,6 @@ public class WiiMenuView extends View {
             // here, and must not skip the screen it just brought up.
             if (!isOk(keyCode) && !isDpad(keyCode)) return false;
             if (!introLeaving) {
-                sound(WiiSounds.START);
                 dismissIntro();
             }
             return true;
@@ -515,12 +538,15 @@ public class WiiMenuView extends View {
         }
         if (focus != before) {
             sound(page != pageBefore ? WiiSounds.PAGE : WiiSounds.MOVE);
+            scheduleHoverSound();
             invalidate();
         }
     }
 
     private void activate() {
-        sound(focus == BTN_INPUTS ? WiiSounds.MENU : WiiSounds.SELECT);
+        removeCallbacks(hoverSound);
+        boolean bigButton = focus == BTN_SETTINGS || focus == BTN_SD || focus == BTN_INPUTS;
+        sound(bigButton ? WiiSounds.BIG_BUTTON : WiiSounds.SELECT);
         if (focus == BTN_SETTINGS) listener.onSettingsButton();
         else if (focus == BTN_SD) listener.onSdButton();
         else if (focus == BTN_INPUTS) listener.onInputsButton();
@@ -793,16 +819,15 @@ public class WiiMenuView extends View {
         return p;
     }
 
-    /** The welcome screen's warning triangle, where drawIntro puts it. */
+    /** Unit warning triangle; drawIntro positions it beside the localized title. */
     private Path buildWarning() {
-        float left = 240f * s, headY = 340f * s;
-        float cx = left + 34f * s, cy = headY - 22f * s, r = 38f * s;
+        float cx = 0f, cy = 0f, r = 1f;
         Path p = new Path();
         p.moveTo(cx, cy - r);
         p.lineTo(cx + r * 1.1f, cy + r * 0.85f);
         p.lineTo(cx - r * 1.1f, cy + r * 0.85f);
         p.close();
-        return rounded(p, new CornerPathEffect(6f * s));
+        return rounded(p, new CornerPathEffect(0.16f));
     }
 
     private Path buildSd() {
@@ -1487,67 +1512,94 @@ public class WiiMenuView extends View {
     private void drawIntro(Canvas c) {
         int a = Math.round(introAlpha * 255);
         int save = a < 255 ? c.saveLayerAlpha(0, 0, w, h, a) : c.save();
-        c.drawColor(0xFFFFFFFF);
-        float left = 240f * s;
-        float headY = 340f * s;
-        drawWarningSign(c, left + 34f * s, headY - 22f * s, 38f * s);
+        c.drawColor(0xFF000000);
+        float center = w / 2f;
         text.setTypeface(sansBold);
-        text.setTextSize(64f * s);
+        text.setTextSize(56f * s);
         text.setTextAlign(Paint.Align.LEFT);
-        text.setColor(0xFF1E1E1E);
-        c.drawText(introTitle, left + 98f * s, headY, text);
-        stroke.setColor(0xFFDADADA);
-        stroke.setStrokeWidth(3f * s);
-        c.drawLine(left, headY + 40f * s, w - left, headY + 40f * s, stroke);
+        float sign = 34f * s, gap = 18f * s;
+        float maxTitle = w * 0.84f - 2 * sign - gap;
+        float titleWidth = text.measureText(introTitle);
+        if (titleWidth > maxTitle) {
+            text.setTextSize(text.getTextSize() * maxTitle / titleWidth);
+            titleWidth = text.measureText(introTitle);
+        }
+        float titleSize = text.getTextSize();
+        float left = center - (titleWidth + 2 * sign + gap) / 2f;
+        drawWarningSign(c, left + sign, 169f * s, sign);
+        // drawWarningSign changes the shared text paint.
+        text.setTypeface(sansBold);
+        text.setTextSize(titleSize);
+        text.setTextAlign(Paint.Align.LEFT);
+        text.setColor(0xFFF2F2F2);
+        c.drawText(introTitle, left + 2 * sign + gap, 195f * s, text);
 
         if (introBody == null) {
             TextPaint body = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-            body.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
-            body.setTextSize(50f * s);
-            body.setColor(0xFF3A3A3A);
-            int width = Math.max(1, Math.round(w - 2 * left));
+            body.setTypeface(sansBold);
+            body.setTextSize(48f * s);
+            body.setColor(0xFFF2F2F2);
+            int width = Math.max(1, Math.round(w * 0.88f));
             introBody = StaticLayout.Builder.obtain(introBodyText, 0, introBodyText.length(), body, width)
-                    .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-                    .setLineSpacing(0f, 1.2f)
+                    .setAlignment(Layout.Alignment.ALIGN_CENTER)
+                    .setIncludePad(false)
+                    .setLineSpacing(0f, 1.65f)
                     .build();
         }
         int bs = c.save();
-        c.translate(left, headY + 100f * s);
+        c.translate((w - introBody.getWidth()) / 2f, 322f * s);
         introBody.draw(c);
         c.restoreToCount(bs);
+
+        text.setTypeface(sansBold);
+        text.setTextAlign(Paint.Align.CENTER);
+        text.setTextSize(38f * s);
+        text.setColor(0xFFF2F2F2);
+        c.drawText(getResources().getString(R.string.wii_intro_online), center, 675f * s, text);
+        text.setTextSize(50f * s);
+        text.setColor(0xFF7396BE);
+        c.drawText("www.nintendo.com/healthsafety/", center, 751f * s, text);
 
         float t = (SystemClock.uptimeMillis() - introStartMs) / 1000f;
         float pulse = 0.58f + 0.42f * (float) Math.cos(t * Math.PI * 2 / 1.6);
         int ca = Math.round(255 * Math.max(0.16f, pulse));
-        text.setTypeface(sansBold);
-        text.setTextSize(52f * s);
-        text.setTextAlign(Paint.Align.LEFT);
-        float tw = text.measureText(introContinue);
-        float iconR = 32f * s, gapIcon = 22f * s;
-        float total = 2 * iconR + gapIcon + tw;
-        float sx = (w - total) / 2f, baseY = 880f * s;
-        float icx = sx + iconR, icy = baseY - 18f * s;
-        fill.setColor(withAlpha(0xFFFFFFFF, ca));
-        c.drawCircle(icx, icy, iconR, fill);
-        stroke.setColor(withAlpha(0xFF9A9A9A, ca));
-        stroke.setStrokeWidth(4.5f * s);
-        c.drawCircle(icx, icy, iconR, stroke);
-        text.setColor(withAlpha(0xFF4A4A4A, ca));
-        c.drawText(introContinue, sx + 2 * iconR + gapIcon, baseY, text);
-        text.setTextSize(22f * s);
+        text.setTextSize(56f * s);
         text.setTextAlign(Paint.Align.CENTER);
-        text.setColor(withAlpha(0xFF777777, ca));
-        c.drawText("OK", icx, icy + 8f * s, text);
+        text.setColor(withAlpha(0xFFF2F2F2, ca));
+        int buttonAt = introContinue.indexOf("OK");
+        float baseline = 884f * s;
+        if (buttonAt < 0) {
+            c.drawText(introContinue, center, baseline, text);
+        } else {
+            String before = introContinue.substring(0, buttonAt);
+            String after = introContinue.substring(buttonAt + 2);
+            float r = 29f * s;
+            float beforeWidth = text.measureText(before), afterWidth = text.measureText(after);
+            float lineLeft = center - (beforeWidth + 2 * r + afterWidth) / 2f;
+            text.setTextAlign(Paint.Align.LEFT);
+            c.drawText(before, lineLeft, baseline, text);
+            c.drawText(after, lineLeft + beforeWidth + 2 * r, baseline, text);
+            float cx = lineLeft + beforeWidth + r, cy = baseline - 19f * s;
+            stroke.setColor(withAlpha(0xFFF2F2F2, ca));
+            stroke.setStrokeWidth(4f * s);
+            c.drawCircle(cx, cy, r, stroke);
+            text.setTextAlign(Paint.Align.CENTER);
+            text.setTextSize(25f * s);
+            c.drawText("OK", cx, cy + 9f * s, text);
+        }
         c.restoreToCount(save);
     }
 
-    /** The sign is warnRound, built for this spot; cx, cy and r place its mark. */
     private void drawWarningSign(Canvas c, float cx, float cy, float r) {
+        int save = c.save();
+        c.translate(cx, cy);
+        c.scale(r, r);
         fill.setColor(0xFFFFC61E);
         c.drawPath(warnRound, fill);
         stroke.setColor(0xFF1E1E1E);
-        stroke.setStrokeWidth(4.5f * s);
+        stroke.setStrokeWidth(4.5f * s / r);
         c.drawPath(warnRound, stroke);
+        c.restoreToCount(save);
         text.setTypeface(sansBold);
         text.setTextSize(r * 1.25f);
         text.setTextAlign(Paint.Align.CENTER);
