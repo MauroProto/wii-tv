@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Synthesises the channel menu's interface sounds into launcher/app/src/main/res/raw.
 
-Every sound is built here from sine tones and filtered noise, so the repository carries no recorded audio.
+These are the legacy synthetic alternatives. The app ships with contributor-made remakes.
+Output goes to tools/sounds/build so running this does not overwrite the bundled recordings.
 Run from the repository root:  python3 tools/sounds/make_sounds.py
 Needs numpy. Tweak the parameters below and re-run to change how the menu sounds.
 """
@@ -11,7 +12,7 @@ import wave
 import numpy as np
 
 RATE = 44100
-OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'launcher', 'app', 'src', 'main', 'res', 'raw')
+OUT = os.path.join(os.path.dirname(__file__), 'build')
 
 
 def t_axis(seconds):
