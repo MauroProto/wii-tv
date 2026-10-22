@@ -4,7 +4,9 @@ El menú de canales de la Wii como pantalla de inicio de tu Android TV.
 
 ![wiiOS en una Philips 65PUD7906](docs/wii-menu.jpg)
 
-wii-tv cambia la pantalla de inicio de un Android TV por un menú al estilo del Menú Wii: doce canales por página, el reloj de segmentos, la fecha, los botones redondos, la manito que sigue a lo que elegís y sonidos al moverte. Cada canal es una de tus apps, con su propio banner. Al prender la TV aparece una pantalla de aviso blanca, como en la consola, y con OK pasás al menú.
+wii-tv cambia la pantalla de inicio de un Android TV por un menú al estilo del Menú Wii: doce canales por página, el reloj de segmentos, la fecha, los botones redondos, la manito que sigue a lo que elegís y sonidos al moverte. Cada canal es una de tus apps, con su propio banner. Al prender la TV aparece una pantalla de aviso negra con texto centrado, como en la consola, y con OK pasás al menú.
+
+Lo mostré en X: [Le puse la interfaz de la Wii a mi TV](https://x.com/ProtoMauro/status/2112776289312555195).
 
 English: [README.en.md](README.en.md)
 
@@ -12,7 +14,7 @@ English: [README.en.md](README.en.md)
 
 wii-tv es un proyecto de fans. No está afiliado a Nintendo ni tiene su aprobación. "Wii" es una marca de Nintendo.
 
-El repositorio no trae nada de Nintendo: ni logos, ni tipografías, ni imágenes, ni sonidos. Todo lo que se ve está dibujado por código (`WiiMenuView`, `WiiBase`, `WiiPalette`) y los sonidos se sintetizan con `tools/sounds/make_sounds.py`.
+El repositorio no incluye archivos extraídos de Nintendo. La interfaz se dibuja por código (`WiiMenuView`, `WiiBase`, `WiiPalette`). Los 8 efectos y las 3 pistas musicales incluidos son remakes propios aportados por Soffizlly; ver [audios y créditos](tools/sounds/README.md).
 
 ## Qué trae
 
@@ -26,14 +28,14 @@ El repositorio no trae nada de Nintendo: ni logos, ni tipografías, ni imágenes
 - **Canal Mii**: el primer canal. La plaza con tus Miis paseando sobre el piso de cuadrados, los botones de los costados (editar, crear, borrar, ayuda, desfile, mensajes), el silbato que los ordena por nombre, favoritos, color o género, y el editor para crearlos y cambiarlos. Los Miis se guardan en la TV. Sin nada más, todo se dibuja por código; con el paquete del canal usa las caras, los pelos, los íconos y los sonidos originales. El repositorio no trae esos archivos: [`tools/miipack`](tools/miipack/README.md) los toma de sus páginas públicas y arma el paquete en tu computadora.
 - **Canal Juegos**: al lado del Canal Mii. Su cartel es una pradera pixelada con un personajito azul que salta piedras y junta gemas. Adentro, tus juegos son cartuchos en un estante: elegís uno, apretás **Jugar** y arranca en [RetroArch](https://www.retroarch.com) con mGBA (Game Boy, Game Boy Color y Game Boy Advance). El botón **RetroArch** abre sus ajustes. Los juegos no vienen con el repositorio: ver [Juegos](#juegos).
 - **Sonidos** al moverte, al abrir algo, al cambiar de página, al abrir las entradas y al continuar desde el aviso. Usan el volumen de la TV.
-- **Música del menú** (opcional): el arranque y la música en bucle, como en la consola, con tus propios archivos. Ver [Música del menú](#música-del-menú).
+- **Audio incluido**: 8 efectos y 3 pistas musicales para el menú, la Plaza Mii y el editor. El arranque suena primero y la música del menú comienza un segundo después. No hay que instalar audios por separado.
 - **Pantalla de aviso** al prender la TV. La cierran OK o las flechas, o se va sola a los 12 segundos. No vuelve a aparecer cuando salís de una app.
 - **Siempre arranca en el menú**: al prender la TV vuelve al menú aunque hayas dejado otra app abierta.
 - Protector de pantalla con reloj (opcional).
 
 Probado en una Philips 65PUD7906/77 (Android TV 11, 1920 x 1080). Debería andar en cualquier Android TV 8.0 o posterior con pantalla 16:9.
 
-![Pantalla de aviso al prender la TV](docs/wii-intro.jpg)
+![Pantalla de aviso al prender la TV](docs/wii-intro-black.png)
 
 ## Qué necesitás
 
@@ -156,20 +158,15 @@ Con el control de la TV, durante el juego:
 
 Si elegís otro juego, o el botón RetroArch del canal, RetroArch cierra el juego que estaba abierto. Lo que guardaste dentro del juego llega al archivo en 10 segundos como mucho, así que esperá un momento antes de cambiar de juego. El mapa de botones es para los controles de las TVs Philips (receptor "MStar Smart TV IR Receiver"); con otro control, configuralo en RetroArch → Ajustes → Entrada.
 
-## Música del menú
+## Audio incluido
 
-El Menú Wii puede tener música de fondo, como en la consola: cuando cerrás la pantalla de aviso suena el arranque junto con la música, y después la música sigue en bucle. Suena solo en el menú: se apaga al abrir un canal, una app, los ajustes o el protector de pantalla, y vuelve a empezar cuando volvés. Si otra app está reproduciendo algo (por ejemplo música que dejaste sonando), el menú espera a que termine.
+El APK ya incluye los 11 remakes de Soffizlly: 8 efectos y 3 pistas musicales. Funcionan desde la instalación, sin descargar archivos ni ejecutar herramientas adicionales.
 
-La app no trae música. Poné la tuya con `tools/music/add.py`, que necesita [ffmpeg](https://ffmpeg.org) en la computadora:
+Al cerrar el aviso inicial, suena el arranque y la música del menú comienza un segundo después, en bucle. La Plaza Mii y el editor tienen sus propias pistas. La música se pausa al salir de cada pantalla y respeta el foco de audio.
 
-```sh
-TV_HOST=192.168.1.50 tools/venv/bin/python tools/music/add.py musica.flac --start arranque.flac --loop 12.5 48
-```
+Los botones wiiOS, SD y el sobre usan `wii_big_buttons.wav`. El aviso `wii_woop.wav` suena una sola vez al mantener el cursor 0,5 segundos sobre un canal. Cambiar de canal, abrir un panel o salir del menú cancela la espera. `wii_hover_delay_ms` en `config.xml` cambia la demora; `0` lo desactiva.
 
-- `--loop INICIO FIN`, en segundos: la música suena hasta FIN y sigue desde INICIO, una y otra vez. El último segundo y medio antes de FIN se funde con lo que suena justo antes de INICIO, así no se nota el salto (`--crossfade` cambia cuánto dura). Sin `--loop` se repite el archivo entero.
-- `--start` es opcional: un sonido de arranque que se mezcla con el principio de la música. Si está, reemplaza al sonido de arranque del menú.
-- Lee los formatos que lee ffmpeg (mp3, flac, ogg, m4a, wav) y los guarda en la TV como WAV, en la carpeta de wiiOS. Con `adb` instalado (o `ADB=/ruta/a/adb`), la copia tarda un segundo.
-- `--remove` saca la música, y `--out carpeta` solo arma los archivos, sin tocar la TV.
+Los archivos están en `launcher/app/src/main/res/raw/`: efectos WAV PCM de 16 bits y música OGG Vorbis. Consulta el [mapa de audios y créditos](tools/sounds/README.md). Si ya tienes música personalizada instalada con la herramienta opcional `tools/music/add.py`, esa música conserva la prioridad; al quitarla vuelve la pista incluida.
 
 ## Personalizar
 
@@ -184,8 +181,8 @@ Cambiá lo que quieras y volvé a correr `launcher/build-and-install.sh` para ap
 | Música del menú sí o no | `wii_music`. |
 | Volumen de la música | `wii_music_volume`, en porcentaje del volumen del archivo (100 por defecto). |
 | App de TV en vivo de la lista de entradas | `live_tv_package`. |
-| Textos de la pantalla de aviso | `wii_intro_title`, `wii_intro_body` y `wii_intro_continue` en `res/values*/strings.xml`. `values-es-rAR` usa voseo. |
-| Cómo suenan los sonidos | `tools/sounds/make_sounds.py`. Cambiá notas y duraciones y corré `python3 tools/sounds/make_sounds.py` (necesita numpy). |
+| Textos de la pantalla de aviso | `wii_intro_title`, `wii_intro_body` y `wii_intro_continue` en `res/values*/strings.xml`. Los textos en español usan español neutro. |
+| Archivos de audio incluidos | `launcher/app/src/main/res/raw/`; ver `tools/sounds/README.md`. El generador antiguo escribe alternativas en `tools/sounds/build/`. |
 | Colores, tamaños y posiciones | Constantes al principio de `WiiMenuView.java`. El fondo y los paneles están en `WiiBase.java` y `WiiPalette.java`. |
 | App del botón SD | `MEDIA_PLAYER` en `WiiMenuActivity.java`. |
 | Canal Juegos sí o no | `games_channel` en `config.xml`. Con el canal, RetroArch no aparece como canal aparte. |
@@ -230,12 +227,12 @@ TV_HOST=192.168.1.50 tools/venv/bin/python tools/tv.py 'cmd package set-home-act
 - **El botón SD dice "No disponible".** Tu TV no tiene el reproductor de MediaTek; poné el de tu TV en `MEDIA_PLAYER`.
 - **Un juego no arranca.** Fijate que RetroArch tenga el núcleo mGBA (paso 1 de [Juegos](#juegos)) y que el juego aparezca en `tools/games/add.py --list`.
 - **No se escuchan los sonidos.** Suben y bajan con el volumen de la TV. Fijate que `wii_sounds` sea `true`.
-- **No suena la música del menú.** Fijate que la hayas cargado con `tools/music/add.py` y que `wii_music` sea `true`. Si otra app está reproduciendo algo en segundo plano, el menú espera a que pare.
+- **No suena la música del menú.** Comprueba que `wii_music` sea `true`, que `wii_music_volume` sea mayor que cero y que el volumen multimedia de la TV esté activo. El APK ya incluye la música. Si otra app reproduce audio en segundo plano, el menú espera a que termine.
 - **`tv.py` no conecta.** La TV y la computadora tienen que estar en la misma red, con la depuración activada, y tenés que aceptar el aviso en la pantalla de la TV.
 
 ## Cómo está hecho
 
-- `launcher/` es una app Android en Java. `WiiMenuActivity` es la pantalla de inicio y `WiiMenuView` dibuja todo: canales, reloj, botones, manito, aviso y la lista de entradas. `WiiBase` y `WiiPalette` calculan el fondo rayado y los paneles píxel por píxel, en un hilo aparte. `WiiSounds` reproduce los sonidos y `MenuMusic`, la música del menú.
+- `launcher/` es una app Android en Java. `WiiMenuActivity` es la pantalla de inicio y `WiiMenuView` dibuja todo: canales, reloj, botones, manito, aviso y la lista de entradas. `WiiBase` y `WiiPalette` calculan el fondo rayado y los paneles píxel por píxel, en un hilo aparte. `WiiSounds` reproduce los efectos, `WiiMusic` las pistas incluidas y `MenuMusic` los reemplazos opcionales del menú.
 - `GamesActivity` y `GamesView` son el canal Juegos; `PixelScene` dibuja la pradera del cartel y `PixelArt` los cartuchos y las letras. `GameList` lee `games.txt` y `RetroArch` arma el pedido para abrir cada juego.
 - La app también trae el launcher de cleanyourtv (`MainActivity`). Ya no es la pantalla de inicio, pero sigue en el código.
 - `tools/` tiene un cliente ADB por red en Python (`tv.py`, no hace falta instalar `adb`), los scripts para desactivar y restaurar apps, el respaldo, el generador de sonidos, `games/add.py` para los juegos y `music/add.py` para la música del menú.
@@ -245,4 +242,5 @@ TV_HOST=192.168.1.50 tools/venv/bin/python tools/tv.py 'cmd package set-home-act
 
 - Basado en [cleanyourtv](https://github.com/Gathin23/cleanyourtv) de Gathin (licencia MIT): las herramientas ADB, los scripts para desactivar y restaurar apps y la base del launcher.
 - Tipografía Outfit, con licencia SIL Open Font License 1.1 (`launcher/FONT-LICENSE-OFL.txt`).
+- Remakes de audio: Soffizlly (2026), incluidos con autorización bajo la licencia MIT del repositorio.
 - Licencia MIT: ver [LICENSE](LICENSE).

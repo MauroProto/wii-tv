@@ -5,6 +5,7 @@ __pycache__/
 tools/miipack/build/
 # Menu music you build with tools/music/add.py --out: your files stay on your computer.
 tools/music/**/*.wav
+tools/sounds/build/
 # The ADB key: whoever has it gets a shell on every TV that accepted it.
 tools/adbkey/
 # Your TV's backups and dumps (serial number, android_id, network names) stay on your computer.
