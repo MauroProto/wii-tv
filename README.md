@@ -8,6 +8,8 @@ wii-tv cambia la pantalla de inicio de un Android TV por un menú al estilo del 
 
 Lo mostré en X: [Le puse la interfaz de la Wii a mi TV](https://x.com/ProtoMauro/status/2112776289312555195).
 
+Lo mostré en X: [Le puse la interfaz de la Wii a mi TV](https://x.com/ProtoMauro/status/2112776289312555195).
+
 English: [README.en.md](README.en.md)
 
 ## Aviso
