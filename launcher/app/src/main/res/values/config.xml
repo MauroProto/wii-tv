@@ -179,7 +179,7 @@
     <!-- Channel menu home (WiiMenuActivity). -->
     <!-- The word on the round button bottom left, which opens Android's Settings. -->
     <string name="wii_settings_label" translatable="false">wiiOS</string>
-    <!-- Interface sounds when moving, choosing, turning the page and opening menus (res/raw/wii_*.wav). -->
+    <!-- Interface sounds when moving, choosing, turning the page and opening menus (res/raw/wii_*.ogg). -->
     <bool name="wii_sounds">true</bool>
     <!-- A single hover cue after staying on a channel. 0 disables it. -->
     <integer name="wii_hover_delay_ms">500</integer>

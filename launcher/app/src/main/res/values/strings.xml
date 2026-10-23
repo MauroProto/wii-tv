@@ -108,8 +108,8 @@
          last opened, e.g. "5 minutes ago" or "yesterday, 9:40 pm". -->
     <string name="last_opened">Last opened %1$s</string>
     <!-- Welcome screen of the channel-menu home (WiiMenuActivity), shown at power-on. -->
-    <string name="wii_intro_title">WARNING—HEALTH AND SAFETY</string>
-    <string name="wii_intro_body">BEFORE PLAYING, READ YOUR OPERATIONS\nMANUAL FOR IMPORTANT INFORMATION\nABOUT YOUR HEALTH AND SAFETY.</string>
+    <string name="wii_intro_title">Before you start</string>
+    <string name="wii_intro_body">Sit at a comfortable distance from the screen and rest your eyes now and then. Your apps, the HDMI inputs and live TV are where they always were.</string>
     <string name="wii_intro_continue">Press OK to continue.</string>
     <!-- Mii channel (MiiChannelActivity): the plaza, the maker and their dialogs. -->
     <string name="mii_channel_name">Mii Channel</string>
@@ -174,6 +174,4 @@
     <!-- The remote's keys in a game, after the colour buttons' Start, Select, L and R. -->
     <string name="games_key_a">OK: A</string>
     <string name="games_key_b">Back: B</string>
-    <string name="games_key_menu">Hold red: RetroArch menu</string>
-    <string name="wii_intro_online">Also available at</string>
-</resources>
+    <string name="games_key_menu">Hold red: RetroArch menu</string></resources>
