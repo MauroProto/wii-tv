@@ -164,9 +164,9 @@ El APK ya incluye los 11 remakes de Soffizlly: 8 efectos y 3 pistas musicales. F
 
 Al cerrar el aviso inicial, suena el arranque y la música del menú comienza un segundo después, en bucle. La Plaza Mii y el editor tienen sus propias pistas. La música se pausa al salir de cada pantalla y respeta el foco de audio.
 
-Los botones wiiOS, SD y el sobre usan `wii_big_buttons.wav`. El aviso `wii_woop.wav` suena una sola vez al mantener el cursor 0,5 segundos sobre un canal. Cambiar de canal, abrir un panel o salir del menú cancela la espera. `wii_hover_delay_ms` en `config.xml` cambia la demora; `0` lo desactiva.
+Los botones wiiOS, SD y el sobre usan `wii_big_buttons.ogg`. El aviso `wii_woop.ogg` suena una sola vez al mantener el cursor 0,5 segundos sobre un canal. Cambiar de canal, abrir un panel o salir del menú cancela la espera. `wii_hover_delay_ms` en `config.xml` cambia la demora; `0` lo desactiva.
 
-Los archivos están en `launcher/app/src/main/res/raw/`: efectos WAV PCM de 16 bits y música OGG Vorbis. Consulta el [mapa de audios y créditos](tools/sounds/README.md). Si ya tienes música personalizada instalada con la herramienta opcional `tools/music/add.py`, esa música conserva la prioridad; al quitarla vuelve la pista incluida.
+Los archivos están en `launcher/app/src/main/res/raw/`: efectos y música OGG Vorbis. Consulta el [mapa de audios y créditos](tools/sounds/README.md). Si ya tienes música personalizada instalada con la herramienta opcional `tools/music/add.py`, esa música conserva la prioridad; al quitarla vuelve la pista incluida.
 
 ## Personalizar
 

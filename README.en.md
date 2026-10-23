@@ -86,9 +86,9 @@ The APK includes all 11 remakes contributed by Soffizlly: 8 effects and 3 music 
 
 After the notice screen closes, the jingle plays first and looping menu music starts one second later. Mii Plaza and the editor have separate tracks. Music pauses when its screen leaves the foreground and respects audio focus.
 
-The wiiOS, SD and envelope buttons share `wii_big_buttons.wav`. `wii_woop.wav` plays once after the cursor stays on a channel for 500 ms. Navigation, opening a panel or leaving Home cancels the countdown. Change `wii_hover_delay_ms` in `config.xml` to adjust it; `0` disables it.
+The wiiOS, SD and envelope buttons share `wii_big_buttons.ogg`. `wii_woop.ogg` plays once after the cursor stays on a channel for 500 ms. Navigation, opening a panel or leaving Home cancels the countdown. Change `wii_hover_delay_ms` in `config.xml` to adjust it; `0` disables it.
 
-Assets are in `launcher/app/src/main/res/raw/`: 16-bit PCM WAV effects and OGG Vorbis music. See the [audio map and credits](tools/sounds/README.md). Existing custom menu music installed with the optional `tools/music/add.py` tool takes precedence; removing it restores the bundled track.
+Assets are in `launcher/app/src/main/res/raw/`: OGG Vorbis effects and music. See the [audio map and credits](tools/sounds/README.md). Existing custom menu music installed with the optional `tools/music/add.py` tool takes precedence; removing it restores the bundled track.
 
 ## Customise
 
