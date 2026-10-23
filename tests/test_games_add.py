@@ -44,8 +44,11 @@ class FileNamesTest(unittest.TestCase):
     def test_folders(self):
         self.assertEqual(add.folder("x.GBA"), "gba")
         self.assertEqual(add.folder("x.gbc"), "gb")
-        self.assertIsNone(add.folder("x.sfc"))
-        self.assertEqual(add.folder("x.sfc", core="snes9x"), "sfc")
+        self.assertEqual(add.folder("x.nes"), "nes")
+        self.assertEqual(add.folder("x.SMC"), "snes")
+        self.assertEqual(add.folder("mslug.zip", system="neogeo"), "neogeo")
+        self.assertIsNone(add.folder("x.md"))
+        self.assertEqual(add.folder("x.md", core="genesis_plus_gx"), "md")
 
     def test_names_are_safe_for_the_shell(self):
         self.assertEqual(add.safe_name("/home/me/Mi juego (USA).gba"), "Mi juego (USA).gba")
@@ -64,6 +67,25 @@ class RetroArchConfigTest(unittest.TestCase):
         self.assertEqual(out, 'a = "1"\nmenu_swap_ok_cancel_buttons = "false"\nb = "2"\nautosave_interval = "10"\n')
         self.assertEqual(add.cfg_value(out, "b"), "2")
         self.assertIsNone(add.cfg_value(out, "c"))
+
+
+
+class RemapTest(unittest.TestCase):
+    def test_every_core_plays_the_remote_as_player_one(self):
+        for lib, rmp in add.CORE_REMAPS.items():
+            self.assertIn('input_remap_port_p2 = "0"', rmp, lib)
+
+    def test_yellow_and_blue_are_y_and_x_and_l_and_r_on_the_gba(self):
+        profile = (ROOT / "tools" / "games" / "retroarch" / "MStar_Smart_TV_IR_Receiver.cfg").read_text()
+        self.assertEqual(add.cfg_value(profile, "input_y_btn"), "185")
+        self.assertEqual(add.cfg_value(profile, "input_x_btn"), "186")
+        self.assertIn('input_player1_btn_y = "10"', add.CORE_REMAPS["mGBA"])
+        self.assertIn('input_player4_btn_x = "11"', add.CORE_REMAPS["mGBA"])
+
+    def test_ok_is_a_on_the_neo_geo(self):
+        rmp = add.CORE_REMAPS["FinalBurn Neo"]
+        self.assertIn('input_player1_btn_a = "0"', rmp)
+        self.assertIn('input_player1_btn_b = "8"', rmp)
 
 
 if __name__ == "__main__":

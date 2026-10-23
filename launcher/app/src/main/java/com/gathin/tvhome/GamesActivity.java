@@ -20,7 +20,8 @@ public class GamesActivity extends Activity implements GamesView.Host {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        sounds = new WiiSounds(this, getResources().getBoolean(R.bool.wii_sounds));
+        sounds = new WiiSounds(this, getResources().getBoolean(R.bool.wii_sounds),
+                WiiSounds.MOVE, WiiSounds.SELECT, WiiSounds.BACK, WiiSounds.START);
         view = new GamesView(this, this, sounds);
         setContentView(view);
         view.requestFocus();

@@ -1,5 +1,6 @@
 package com.gathin.tvhome;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -58,18 +59,42 @@ public class GameListTest {
     }
 
     @Test
-    public void defaultCoreCoversTheHandhelds() {
+    public void defaultCoreCoversTheHandheldsNesAndSnes() {
         assertEquals("mgba", GameList.defaultCore("/a/B.GBA"));
         assertEquals("mgba", GameList.defaultCore("/a/b.gbc"));
+        assertEquals("fceumm", GameList.defaultCore("/a/b.NES"));
+        assertEquals("snes9x2010", GameList.defaultCore("/a/b.sfc"));
+        assertEquals("snes9x2010", GameList.defaultCore("/a/b.smc"));
         assertNull(GameList.defaultCore("/a/b.zip"));
     }
 
     @Test
-    public void systemIsNamedByTheExtension() {
+    public void neoGeoLinesNameTheirCore() {
+        List<GameList.Game> games = GameList.parse(
+                "Metal Slug | /storage/emulated/0/RetroArch/roms/neogeo/mslug.zip | | fbneo\n"
+                        + "No core | /storage/emulated/0/RetroArch/roms/neogeo/kof98.zip\n");
+        assertEquals(1, games.size());
+        assertEquals("fbneo", games.get(0).core);
+        assertEquals("Neo Geo", GameList.system(games.get(0).rom));
+    }
+
+    @Test
+    public void systemIsNamedByTheExtensionOrFolder() {
         assertEquals("Game Boy Advance", GameList.system("/r/Juego.GBA"));
         assertEquals("Game Boy Color", GameList.system("/r/a.gbc"));
         assertEquals("Game Boy", GameList.system("/r/a.gb"));
-        assertNull(GameList.system("/r/a.sfc"));
+        assertEquals("NES", GameList.system("/r/nes/a.nes"));
+        assertEquals("Super Nintendo", GameList.system("/r/snes/a.SMC"));
+        assertNull(GameList.system("/r/arcade/a.zip"));
+        assertNull(GameList.system("/r/a.md"));
+    }
+
+    @Test
+    public void padNamesTheColourButtonsPerConsole() {
+        assertArrayEquals(new String[] {"Start", "Select", "L", "R"}, GameList.pad("/r/gba/a.gba", "Coin"));
+        assertArrayEquals(new String[] {"Start", "Select", null, null}, GameList.pad("/r/nes/a.nes", "Coin"));
+        assertArrayEquals(new String[] {"Start", "Select", "Y", "X"}, GameList.pad("/r/snes/a.sfc", "Coin"));
+        assertArrayEquals(new String[] {"Start", "Coin", "C", "D"}, GameList.pad("/r/neogeo/mslug.zip", "Coin"));
     }
 
     private static boolean contains(int[] list, int v) {

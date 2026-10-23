@@ -69,7 +69,6 @@ final class GamesView extends View {
     private static final long STAGGER_MS = 60L;
     /** The TV remote's colour buttons, in the order tools/games/add.py --setup maps them. */
     private static final int[] REMOTE = {0xFFE53935, 0xFF43A047, 0xFFFDD835, 0xFF1E88E5};
-    private static final String[] PAD = {"Start", "Select", "L", "R"};
 
     private final Host host;
     private final WiiSounds sounds;
@@ -77,7 +76,7 @@ final class GamesView extends View {
     private final WiiHand hand;
     private final Typeface bold;
     private final Typeface regular;
-    private final String menuLabel, playLabel, retroLabel, emptyTitle, emptyBody, missing;
+    private final String menuLabel, playLabel, retroLabel, emptyTitle, emptyBody, missing, coin;
     private final String[] keys;
     private final TextPaint text = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -91,6 +90,8 @@ final class GamesView extends View {
 
     private List<GameList.Game> games = new ArrayList<>();
     private Bitmap[] carts = new Bitmap[0];
+    /** Each game's GameList.pad, for the legend. */
+    private String[][] pads = new String[0][];
     private float[] lift = new float[0];
     private final float[] btnLift = new float[3];
     private boolean hasRetroArch;
@@ -130,6 +131,7 @@ final class GamesView extends View {
         emptyTitle = context.getString(R.string.games_empty_title);
         emptyBody = context.getString(R.string.games_empty_body);
         missing = context.getString(R.string.games_missing);
+        coin = context.getString(R.string.games_coin);
         keys = new String[] {context.getString(R.string.games_key_a), context.getString(R.string.games_key_b),
                 context.getString(R.string.games_key_menu)};
         scene = new PixelScene(context.getString(R.string.games_channel_name), bold);
@@ -164,7 +166,11 @@ final class GamesView extends View {
         games = list;
         hasRetroArch = retroArch;
         carts = new Bitmap[list.size()];
-        for (int i = 0; i < carts.length; i++) carts[i] = PixelArt.cartridge(list.get(i).color, list.get(i).title);
+        pads = new String[list.size()][];
+        for (int i = 0; i < carts.length; i++) {
+            carts[i] = PixelArt.cartridge(list.get(i).color, list.get(i).title);
+            pads[i] = GameList.pad(list.get(i).rom, coin);
+        }
         lift = new float[list.size()];
         focus = 0;
         for (int i = 0; i < list.size(); i++) if (list.get(i).rom.equals(lastPlayed)) focus = i;
@@ -556,30 +562,31 @@ final class GamesView extends View {
         text.setTextSize(32f * s);
         text.setColor(subColor);
         c.drawText(sub, 960f * s, SUB_Y * s, text);
-        if (!games.isEmpty() && hasRetroArch) drawLegend(c);
+        if (!games.isEmpty() && hasRetroArch) drawLegend(c, pads[focus]);
     }
 
-    /** How the remote plays: its colour buttons as the handheld's, OK and Back as A and B. */
-    private void drawLegend(Canvas c) {
+    /** How the remote plays: its colour buttons as the console's (pad), OK and Back as A and B. */
+    private void drawLegend(Canvas c, String[] pad) {
         text.setTypeface(regular);
         text.setTextSize(27f * s);
         text.setTextAlign(Paint.Align.LEFT);
         text.setColor(0xFF8C8C8C);
         float dot = 20f * s, gap = 10f * s, item = 26f * s, group = 52f * s;
         float total = 0f;
-        for (String p : PAD) total += dot + gap + text.measureText(p) + item;
+        for (String p : pad) if (p != null) total += dot + gap + text.measureText(p) + item;
         total += group - item;
         for (int i = 0; i < keys.length; i++) total += text.measureText(keys[i]) + (i < keys.length - 1 ? group : 0f);
         float x = 960f * s - total / 2f, y = LEGEND_Y * s;
-        for (int i = 0; i < PAD.length; i++) {
+        for (int i = 0; i < pad.length; i++) {
+            if (pad[i] == null) continue;
             fill.setColor(REMOTE[i]);
             c.drawCircle(x + dot / 2f, y - 9f * s, dot / 2f, fill);
             stroke.setColor(0x33000000);
             stroke.setStrokeWidth(1.5f * s);
             c.drawCircle(x + dot / 2f, y - 9f * s, dot / 2f, stroke);
             x += dot + gap;
-            c.drawText(PAD[i], x, y, text);
-            x += text.measureText(PAD[i]) + item;
+            c.drawText(pad[i], x, y, text);
+            x += text.measureText(pad[i]) + item;
         }
         x += group - item;
         for (String k : keys) {

@@ -171,7 +171,9 @@
     <string name="games_empty_title">No games yet</string>
     <string name="games_empty_body">Add them from your computer with tools/games/add.py.</string>
     <string name="games_missing">Install RetroArch to play.</string>
-    <!-- The remote's keys in a game, after the colour buttons' Start, Select, L and R. -->
+    <!-- The Neo Geo's Select button, which drops a coin in. -->
+    <string name="games_coin">Coin</string>
+    <!-- The remote's keys in a game, after the colour buttons (Start, Select and the console's own). -->
     <string name="games_key_a">OK: A</string>
     <string name="games_key_b">Back: B</string>
     <string name="games_key_menu">Hold red: RetroArch menu</string></resources>

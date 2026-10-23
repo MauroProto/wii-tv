@@ -23,6 +23,7 @@ final class WiiHand {
     private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF badge = new RectF();
     private final RectF dst = new RectF();
+    private final Matrix matrix = new Matrix();
     private final Paint bmp = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
     private final Paint blur = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
     private Path hand, lines;
@@ -132,8 +133,27 @@ final class WiiHand {
         c.restoreToCount(save);
     }
 
-    private void drawBadge(Canvas c, float u) {
-        fill.setColor(0xFF47B6EA);
+    /** What draw(x, y) covers, shadow and badge included. */
+    void bounds(float x, float y, RectF out) {
+        float u = UNIT * s;
+        if (point == null) {
+            matrix.setRotate(-8f);
+            matrix.postTranslate(x, y);
+            out.set(-20f * u, -3f * u, 32f * u, 64f * u);
+            matrix.mapRect(out);
+            return;
+        }
+        boolean closed = grabbing && grab != null;
+        Bitmap b = closed ? grab : point, sh = closed ? grabBlur : pointBlur;
+        float k = 1.5f * s;
+        float ax = closed ? b.getWidth() / 2f : 14f, ay = closed ? b.getHeight() * 0.3f : 2f;
+        float right = Math.max(b.getWidth(), sh == null ? 0f : sh.getWidth() + 3f) - ax;
+        float bottom = Math.max(b.getHeight(), sh == null ? 0f : sh.getHeight() + 5f) - ay;
+        out.set(x - ax * k, y - ay * k, x + right * k, y + bottom * k);
+        if (!closed) out.bottom = Math.max(out.bottom, y + 80f * s + 13f * u);
+    }
+
+    private void drawBadge(Canvas c, float u) {        fill.setColor(0xFF47B6EA);
         c.drawRoundRect(badge, 4f * u, 4f * u, fill);
         stroke.setColor(0xFF2C86BA);
         stroke.setStrokeWidth(1.6f * u);

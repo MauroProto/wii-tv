@@ -20,7 +20,8 @@ import java.util.Locale;
  *   Fire Red | /storage/emulated/0/RetroArch/roms/gba/firered.gba | #E8432E
  * </pre>
  *
- * The colour and the core are optional; Game Boy and Game Boy Advance files default to mGBA. tools/games/add.py
+ * The colour and the core are optional: Game Boy and GBA files default to mGBA, NES to FCEUmm and SNES to Snes9x
+ * 2010; Neo Geo sets are .zip files, so their lines name fbneo (FinalBurn Neo). tools/games/add.py
  * copies a ROM to the TV and writes its line, through ThemeProvider where the shell cannot reach Android/data.
  */
 final class GameList {
@@ -78,22 +79,46 @@ final class GameList {
         return games;
     }
 
-    /** The core for a ROM's extension, or null when the line has to name one. */
+    /** The core for a ROM's extension, or null when the line has to name one (Neo Geo sets are plain .zip files). */
     static String defaultCore(String rom) {
         String name = rom.toLowerCase(Locale.ROOT);
         if (name.endsWith(".gba") || name.endsWith(".gb") || name.endsWith(".gbc") || name.endsWith(".sgb")) {
             return "mgba";
         }
+        if (name.endsWith(".nes")) return "fceumm";
+        if (name.endsWith(".sfc") || name.endsWith(".smc")) return "snes9x2010";
         return null;
     }
 
-    /** The console a ROM is for, by its extension, or null for one the channel has no name for. */
+    /** The console a ROM is for, by its extension or its roms/ folder, or null for one the channel has no name for. */
     static String system(String rom) {
         String name = rom.toLowerCase(Locale.ROOT);
         if (name.endsWith(".gba")) return "Game Boy Advance";
         if (name.endsWith(".gbc")) return "Game Boy Color";
         if (name.endsWith(".gb") || name.endsWith(".sgb")) return "Game Boy";
+        if (name.endsWith(".nes")) return "NES";
+        if (name.endsWith(".sfc") || name.endsWith(".smc")) return "Super Nintendo";
+        if (name.endsWith(".zip") && name.contains("/neogeo/")) return "Neo Geo";
         return null;
+    }
+
+    /**
+     * The remote's red, green, yellow and blue buttons in a ROM's game, as tools/games/add.py --setup maps them;
+     * null for a button the console lacks. coin names the Neo Geo's Select.
+     */
+    static String[] pad(String rom, String coin) {
+        String system = system(rom);
+        if (system == null) return new String[] {"Start", "Select", "Y", "X"};
+        switch (system) {
+            case "Game Boy Advance":
+                return new String[] {"Start", "Select", "L", "R"};
+            case "Super Nintendo":
+                return new String[] {"Start", "Select", "Y", "X"};
+            case "Neo Geo":
+                return new String[] {"Start", coin, "C", "D"};
+            default:
+                return new String[] {"Start", "Select", null, null};
+        }
     }
 
     /** "#RRGGBB" as an opaque colour; 0 for anything else. */

@@ -6,7 +6,7 @@ import android.media.SoundPool;
 import android.os.SystemClock;
 
 /**
- * The channel menu's interface sounds (res/raw/wii_*.wav, synthesised by tools/sounds/make_sounds.py).
+ * The channel menu's interface sounds (res/raw/wii_*.ogg).
  * They play on the media stream, so the remote's volume keys set how loud they are.
  */
 final class WiiSounds {
@@ -16,16 +16,29 @@ final class WiiSounds {
     static final int BACK = 3;
     static final int MENU = 4;
     static final int START = 5;
+    static final int BIG_BUTTON = 6;
+    static final int WOOP = 7;
 
+    /** By sound id. The Mii panels and the big buttons make the same sound, so they share one decoded copy. */
+    private static final int[] RES = {
+            R.raw.wii_move, R.raw.wii_select, R.raw.wii_page, R.raw.wii_back,
+            R.raw.wii_big_buttons, R.raw.wii_start, R.raw.wii_big_buttons, R.raw.wii_woop,
+    };
+    private static final int[] ALL = {MOVE, SELECT, PAGE, BACK, MENU, START, BIG_BUTTON, WOOP};
     private static final float VOLUME = 0.6f;
 
     private final SoundPool pool;
-    private final int[] ids = new int[6];
+    private final int[] ids = new int[RES.length];
     private final boolean enabled;
-    private final boolean[] muted = new boolean[6];
+    private final boolean[] muted = new boolean[RES.length];
     private volatile long lastPlayed;
 
     WiiSounds(Context context, boolean enabled) {
+        this(context, enabled, ALL);
+    }
+
+    /** Loads only the sounds a screen plays: each one stays decoded in memory while the screen lives. */
+    WiiSounds(Context context, boolean enabled, int... used) {
         this.enabled = enabled;
         AudioAttributes attrs = new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_GAME)
@@ -33,12 +46,13 @@ final class WiiSounds {
                 .build();
         pool = new SoundPool.Builder().setMaxStreams(4).setAudioAttributes(attrs).build();
         if (!enabled) return;
-        ids[MOVE] = pool.load(context, R.raw.wii_move, 1);
-        ids[SELECT] = pool.load(context, R.raw.wii_select, 1);
-        ids[PAGE] = pool.load(context, R.raw.wii_page, 1);
-        ids[BACK] = pool.load(context, R.raw.wii_back, 1);
-        ids[MENU] = pool.load(context, R.raw.wii_menu, 1);
-        ids[START] = pool.load(context, R.raw.wii_start, 1);
+        for (int which : used) {
+            if (ids[which] != 0) continue;
+            for (int other = 0; other < RES.length && ids[which] == 0; other++) {
+                if (RES[other] == RES[which]) ids[which] = ids[other];
+            }
+            if (ids[which] == 0) ids[which] = pool.load(context, RES[which], 1);
+        }
     }
 
     void play(int which) {

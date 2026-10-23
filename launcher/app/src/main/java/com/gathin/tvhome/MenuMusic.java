@@ -16,9 +16,10 @@ import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 
 /**
- * The channel menu's background music, from files tools/music/add.py copies to the TV (none ship with the app).
+ * Your own menu music, from files tools/music/add.py copies to the TV; it plays instead of the bundled track.
  * music/menu.wav plays from the top and then repeats its loop: the one in its smpl chunk, or else the whole file.
- * music/menu_start.wav is mixed over its first seconds when the menu appears after the welcome screen. Both are
+ * music/menu_start.wav plays when the menu appears after the welcome screen, and the music comes in a second
+ * later, as with the bundled track. Both are
  * 16-bit PCM, streamed from the file a block at a time: no decoder, and a few kilobytes of memory.
  */
 final class MenuMusic {
@@ -45,6 +46,12 @@ final class MenuMusic {
         this.enabled = enabled;
         this.gain = Math.max(0, Math.min(200, volumePercent)) / 100f;
         this.sounds = sounds;
+    }
+
+    /** True when your own music is on the TV; it then plays instead of the bundled track. */
+    boolean hasMusic() {
+        File loop = file(LOOP);
+        return enabled && gain > 0f && loop != null && loop.isFile();
     }
 
     /** True when the music comes with its start jingle, which then takes the place of the menu's start sound. */
@@ -128,12 +135,20 @@ final class MenuMusic {
                 byte[] jraw = new byte[BLOCK * ch * 2];
                 short[] out = new short[BLOCK * ch];
                 long pos = 0, jpos = 0;
+                long leadIn = jingle == null ? 0 : wav.rate;
                 float fade = 1f, step = 1f / (FADE_OUT_S * wav.rate);
                 track.play();
                 boolean done = false;
                 while (alive && !done) {
                     int got = 0;
                     while (got < BLOCK) {
+                        if (leadIn > 0) {
+                            int n = (int) Math.min(BLOCK - got, leadIn);
+                            java.util.Arrays.fill(raw, got * ch * 2, (got + n) * ch * 2, (byte) 0);
+                            got += n;
+                            leadIn -= n;
+                            continue;
+                        }
                         if (pos >= wav.loopEnd) {
                             pos = wav.loopStart;
                             in.seek(wav.dataOffset + pos * ch * 2);

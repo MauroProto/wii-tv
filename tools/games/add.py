@@ -2,6 +2,8 @@
 """Put your games on the TV for the wiiOS Games channel, and set RetroArch up for the TV remote.
 
     TV_HOST=192.168.1.50 tools/venv/bin/python tools/games/add.py game.gba [--title T] [--color "#E8432E"] [--core mgba]
+    TV_HOST=192.168.1.50 tools/venv/bin/python tools/games/add.py mslug.zip --system neogeo --title "Metal Slug"
+    TV_HOST=192.168.1.50 tools/venv/bin/python tools/games/add.py --bios neogeo.zip
     TV_HOST=192.168.1.50 tools/venv/bin/python tools/games/add.py --list
     TV_HOST=192.168.1.50 tools/venv/bin/python tools/games/add.py --remove "Title or file name" [--delete]
     TV_HOST=192.168.1.50 tools/venv/bin/python tools/games/add.py --setup
@@ -9,7 +11,7 @@
 A game is copied to /storage/emulated/0/RetroArch/roms/<system>/ and gets a line in the launcher's games.txt
 (see GameList.java), written through its ThemeProvider. --setup changes a few RetroArch settings and adds the
 button maps in tools/games/retroarch/ so the remote plays: OK = A, Back = B, red/green/yellow/blue =
-Start/Select/L/R, hold red for RetroArch's menu.
+Start/Select/Y/X (L/R on the Game Boy Advance; coin and C/D on the Neo Geo), hold red for RetroArch's menu.
 
 Only use games you own: dump your own cartridges.
 """
@@ -28,8 +30,10 @@ GAMES_URI = "content://com.gathin.tvhome.theme/games.txt"
 TMP = "/data/local/tmp"
 # Same order as RetroArch.PACKAGES in the launcher.
 PACKAGES = ("com.retroarch.aarch64", "com.retroarch", "com.retroarch.ra32")
-# The handhelds the launcher starts in mGBA without a core named.
-FOLDERS = {".gba": "gba", ".gb": "gb", ".gbc": "gb", ".sgb": "gb"}
+# The consoles the launcher starts without a core named (GameList.defaultCore), and their roms/ subfolder.
+FOLDERS = {".gba": "gba", ".gb": "gb", ".gbc": "gb", ".sgb": "gb", ".nes": "nes", ".sfc": "snes", ".smc": "snes"}
+# Consoles whose files are plain .zip sets: --system picks the folder and the core.
+SYSTEMS = {"neogeo": ("neogeo", "fbneo")}
 HEADER = "# title | ROM path | label colour | libretro core"
 CHUNK = 48 * 1024
 SETTINGS = {
@@ -46,12 +50,29 @@ SETTINGS = {
 }
 # Whatever port the remote lands on, it plays as player 1.
 REMAP = 'input_remap_port_p2 = "0"\ninput_remap_port_p3 = "0"\ninput_remap_port_p4 = "0"\n'
+# The remote's yellow and blue are Y and X, which the GBA lacks: there they become L and R (RetroPad 10 and 11).
+# A gamepad's own L and R are untouched.
+GBA_LR = "".join(f'input_player{n}_btn_y = "10"\ninput_player{n}_btn_x = "11"\n' for n in range(1, 5))
+# FinalBurn Neo reads the Neo Geo's A and B from RetroPad B and A (C and D from Y and X): swapped, OK is A as
+# on the other consoles.
+NEOGEO_AB = "".join(f'input_player{n}_btn_a = "0"\ninput_player{n}_btn_b = "8"\n' for n in range(1, 5))
+# Each core's remap file, under the folder of its library name, as RetroArch looks for it.
+CORE_REMAPS = {
+    "mGBA": REMAP + GBA_LR,
+    "FCEUmm": REMAP,
+    "Snes9x 2010": REMAP,
+    "FinalBurn Neo": REMAP + NEOGEO_AB,
+}
+CORES = ("Nintendo - Game Boy Advance (mGBA), Nintendo - NES / Famicom (FCEUmm), "
+         "Nintendo - SNES / SFC (Snes9x 2010), Arcade (FinalBurn Neo)")
 
 
 # ---- games.txt -----------------------------------------------------------------------------------------
 
-def folder(name, core=None):
+def folder(name, core=None, system=None):
     """The roms/ subfolder for a file, or None when the launcher could not start it without a core."""
+    if system:
+        return SYSTEMS[system][0]
     ext = os.path.splitext(name)[1].lower()
     if ext in FOLDERS:
         return FOLDERS[ext]
@@ -209,11 +230,15 @@ def retroarch(dev):
 
 # ---- commands ------------------------------------------------------------------------------------------
 
-def add(dev, local, title, color, core):
-    sub = folder(local, core)
+def add(dev, local, title, color, core, system=None):
+    if system == "neogeo" and not local.lower().endswith(".zip"):
+        sys.exit(f"{local}: Neo Geo games are FinalBurn Neo .zip sets, named as the set (for example mslug.zip).")
+    if system:
+        core = core or SYSTEMS[system][1]
+    sub = folder(local, core, system)
     if sub is None:
-        sys.exit(f"{local}: the channel starts .gba, .gb and .gbc files in mGBA; for anything else name a core "
-                 "with --core (for example --core snes9x).")
+        sys.exit(f"{local}: the channel starts .gba, .gb, .gbc, .nes, .sfc and .smc files on its own; for a Neo Geo "
+                 "set add --system neogeo, and for anything else name a core with --core (e.g. --core genesis_plus_gx).")
     remote_dir = f"{ROMS}/{sub}"
     remote = f"{remote_dir}/{safe_name(local)}"
     sh(dev, f"mkdir -p {shlex.quote(remote_dir)}")
@@ -225,6 +250,17 @@ def add(dev, local, title, color, core):
     print(f"added \"{title or default_title(local)}\" to the Games channel")
     if retroarch(dev) is None:
         print("RetroArch is not installed yet: the channel will ask for it.")
+
+
+def bios(dev, local):
+    """Copies the Neo Geo BIOS next to the Neo Geo games, where FinalBurn Neo looks for it."""
+    if os.path.basename(local).lower() != "neogeo.zip":
+        sys.exit(f"{local}: FinalBurn Neo's Neo Geo BIOS is the set called neogeo.zip.")
+    remote_dir = f"{ROMS}/neogeo"
+    sh(dev, f"mkdir -p {remote_dir}")
+    if not push_file(dev, local, f"{remote_dir}/neogeo.zip"):
+        sys.exit("The copy on the TV does not match the file.")
+    print(f"copied the Neo Geo BIOS to {remote_dir}/neogeo.zip")
 
 
 def setup(dev):
@@ -250,12 +286,15 @@ def setup(dev):
     remaps = cfg_value(text, "input_remapping_directory") or "/storage/emulated/0/RetroArch/config/remaps"
     if remaps == "default":
         remaps = "/storage/emulated/0/RetroArch/config/remaps"
-    sh(dev, f"mkdir -p {shlex.quote(remaps + '/mGBA')}")
-    put_bytes(dev, REMAP.encode(), f"{remaps}/mGBA/mGBA.rmp")
-    sh(dev, f"mkdir -p {ROMS}/gba {ROMS}/gb")
+    for lib, rmp in CORE_REMAPS.items():
+        path = shlex.quote(f"{remaps}/{lib}/{lib}.rmp")
+        sh(dev, f"mkdir -p {shlex.quote(remaps + '/' + lib)}")
+        sh(dev, f"[ -f {path} ] && [ ! -f {path}.before-wii-tv ] && cp {path} {path}.before-wii-tv")
+        put_bytes(dev, rmp.encode(), f"{remaps}/{lib}/{lib}.rmp")
+    sh(dev, f"mkdir -p {ROMS}/gba {ROMS}/gb {ROMS}/nes {ROMS}/snes {ROMS}/neogeo")
     print(f"RetroArch ({pkg}) is set up; its old settings are in {cfg}.before-wii-tv")
-    print("In RetroArch, if you have not yet: Online Updater > Core Downloader > Nintendo - Game Boy Advance "
-          "(mGBA), and Online Updater > Update Controller Profiles for Bluetooth gamepads.")
+    print(f"In RetroArch, if you have not yet: Online Updater > Core Downloader > the cores for your consoles ({CORES}), "
+          "and Online Updater > Update Controller Profiles for Bluetooth gamepads.")
 
 
 def main():
@@ -264,6 +303,8 @@ def main():
     ap.add_argument("--title", help="the name on the shelf (one game at a time); default: the file name")
     ap.add_argument("--color", help="label colour, #RRGGBB")
     ap.add_argument("--core", help="libretro core, e.g. mgba (the default for Game Boy and GBA files)")
+    ap.add_argument("--system", choices=sorted(SYSTEMS), help="the console of .zip sets: neogeo (FinalBurn Neo)")
+    ap.add_argument("--bios", metavar="FILE", help="copy the Neo Geo BIOS (neogeo.zip) next to the Neo Geo games")
     ap.add_argument("--list", action="store_true", help="show the games in the channel")
     ap.add_argument("--remove", metavar="GAME", help="take a game off the channel, by title or file name")
     ap.add_argument("--delete", action="store_true", help="with --remove, also delete its file from the TV")
@@ -275,10 +316,10 @@ def main():
         ap.error("--core takes a core's name, e.g. mgba")
     if args.title and len(args.rom) > 1:
         ap.error("--title names one game; add them one at a time")
-    for path in args.rom:
+    for path in args.rom + ([args.bios] if args.bios else []):
         if not os.path.isfile(path):
             ap.error(f"{path}: no such file")
-    if not (args.rom or args.list or args.remove or args.setup):
+    if not (args.rom or args.list or args.remove or args.setup or args.bios):
         ap.print_help()
         return
 
@@ -286,8 +327,10 @@ def main():
     try:
         if args.setup:
             setup(dev)
+        if args.bios:
+            bios(dev, args.bios)
         for path in args.rom:
-            add(dev, path, args.title, args.color, args.core)
+            add(dev, path, args.title, args.color, args.core, args.system)
         if args.remove:
             text, gone = remove(read_games(dev), args.remove)
             if not gone:

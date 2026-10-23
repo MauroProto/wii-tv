@@ -11,7 +11,7 @@ START, so the jump back is not heard. menu_start.wav, from --start, is mixed ove
 menu appears after the welcome screen. Reads anything ffmpeg plays (mp3, flac, ogg, m4a, wav); ffmpeg has to
 be installed. With adb installed (or ADB=/path/to/adb) the copy takes a second instead of minutes.
 
-The app comes with no music: use files you are allowed to use.
+Your music plays instead of the bundled track, which comes back with --remove. Use files you are allowed to use.
 """
 import argparse
 import array
@@ -170,7 +170,7 @@ def main():
             tv.sh(f"rm -f {REMOTE}/{LOOP_FILE} {REMOTE}/{START_FILE}")
         finally:
             tv.close()
-        print("removed the menu music; the menu is quiet from the next time it comes up")
+        print("removed your menu music; the bundled track plays from the next time the menu comes up")
         return
 
     try:

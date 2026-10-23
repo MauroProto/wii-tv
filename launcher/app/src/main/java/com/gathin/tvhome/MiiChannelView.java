@@ -46,6 +46,7 @@ final class MiiChannelView extends View {
     private final MiiArt art = new MiiArt();
     private final MiiPlaza plaza;
     private final MiiAudio audio;
+    private final WiiMusic music;
     private final WiiSounds sounds;
     private final MiiPackSounds packSounds;
     private final Random rnd = new Random();
@@ -94,7 +95,14 @@ final class MiiChannelView extends View {
         plaza = new MiiPlaza(this, ui, art);
         boolean sound = context.getResources().getBoolean(R.bool.wii_sounds);
         audio = new MiiAudio(sound);
-        sounds = new WiiSounds(context, sound);
+        // The Plaza's music sits under its effects, at 40 % of the level set for the menu music.
+        int musicVolume = Math.max(0, Math.min(100, context.getResources().getInteger(R.integer.wii_music_volume)));
+        music = new WiiMusic(context, context.getResources().getBoolean(R.bool.wii_music), 40 * musicVolume / 100,
+                () -> audio.setMusic(true));
+        music.setTrack(R.raw.wii_music_plaza);
+        audio.setMusic(!music.hasTrack());
+        sounds = new WiiSounds(context, sound,
+                WiiSounds.MOVE, WiiSounds.SELECT, WiiSounds.PAGE, WiiSounds.BACK, WiiSounds.MENU);
         packSounds = sound && pack != null ? new MiiPackSounds(context, pack) : null;
         store = new MiiStore(context);
         plaza.setMiis(store.loadOrSeed(rnd, SEED_COUNT));
@@ -146,16 +154,21 @@ final class MiiChannelView extends View {
         lastNanos = 0;
         audio.setCalm(editor != null);
         audio.resume();
+        music.setTrack(editor != null ? R.raw.wii_music_editor : R.raw.wii_music_plaza);
+        audio.setMusic(!music.hasTrack());
+        music.resume();
         invalidate();
     }
 
     void pause() {
         running = false;
         audio.pause();
+        music.pause();
     }
 
     void release() {
         audio.release();
+        music.release();
         sounds.release();
         if (packSounds != null) packSounds.release();
     }
@@ -303,6 +316,8 @@ final class MiiChannelView extends View {
         fadeTo(() -> {
             editor = new MiiEditor(this, ui, art, m, isNew);
             audio.setCalm(true);
+            music.setTrack(R.raw.wii_music_editor);
+            audio.setMusic(!music.hasTrack());
             handPlaced = false;
         }, true);
     }
@@ -314,6 +329,8 @@ final class MiiChannelView extends View {
             editor = null;
             original = null;
             audio.setCalm(false);
+            music.setTrack(R.raw.wii_music_plaza);
+            audio.setMusic(!music.hasTrack());
             handPlaced = false;
             if (saved != null) {
                 if (isNew) plaza.addNew(saved);

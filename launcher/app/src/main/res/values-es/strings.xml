@@ -115,6 +115,7 @@
     <string name="games_empty_title">Todavía no hay juegos</string>
     <string name="games_empty_body">Añádelos desde el ordenador con tools/games/add.py.</string>
     <string name="games_missing">Instala RetroArch para jugar.</string>
+    <string name="games_coin">Moneda</string>
     <string name="games_key_a">OK: A</string>
     <string name="games_key_b">Atrás: B</string>
     <string name="games_key_menu">Mantén el rojo: menú de RetroArch</string></resources>
