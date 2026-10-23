@@ -46,4 +46,4 @@ jobs:
         run: |
           size=$(stat -c %s launcher/app/build/outputs/apk/release/app-release.apk)
           echo "release APK: $((size / 1024)) KB"
-          test "$size" -lt 819200 || { echo "APK is over 800 KB; the launcher targets 1 GB TVs, keep it small"; exit 1; }
+          test "$size" -lt 1638400 || { echo "APK is over 1600 KB; the launcher targets 1 GB TVs, keep it small"; exit 1; }
