@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- app_banners names drawables at run time, which resource shrinking cannot see: keep every banner_*. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/banner_*" />
