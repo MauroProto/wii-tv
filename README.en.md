@@ -4,7 +4,7 @@ The Wii channel menu as the home screen of your Android TV.
 
 ![wiiOS on a Philips 65PUD7906](docs/wii-menu.jpg)
 
-wii-tv replaces the home screen of an Android TV with a menu in the style of the Wii Menu: twelve channels to a page, the segment clock, the date, the round buttons, a pointing hand that follows your selection and sounds as you move. Each channel is one of your apps, with its own banner. When the TV turns on, a black notice screen with centered text comes up, as on the console, and OK takes you to the menu.
+wii-tv replaces the home screen of an Android TV with a menu in the style of the Wii Menu: twelve channels to a page, the segment clock, the date, the round buttons, a pointing hand that follows your selection and sounds as you move. Each channel is one of your apps, with its own banner. When the TV turns on, a white notice screen comes up, as on the console, and OK takes you to the menu.
 
 Shown on X: [I put the Wii interface on my TV](https://x.com/ProtoMauro/status/2112776289312555195) (in Spanish).
 

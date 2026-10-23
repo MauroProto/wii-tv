@@ -4,7 +4,7 @@ El menú de canales de la Wii como pantalla de inicio de tu Android TV.
 
 ![wiiOS en una Philips 65PUD7906](docs/wii-menu.jpg)
 
-wii-tv cambia la pantalla de inicio de un Android TV por un menú al estilo del Menú Wii: doce canales por página, el reloj de segmentos, la fecha, los botones redondos, la manito que sigue a lo que elegís y sonidos al moverte. Cada canal es una de tus apps, con su propio banner. Al prender la TV aparece una pantalla de aviso negra con texto centrado, como en la consola, y con OK pasás al menú.
+wii-tv cambia la pantalla de inicio de un Android TV por un menú al estilo del Menú Wii: doce canales por página, el reloj de segmentos, la fecha, los botones redondos, la manito que sigue a lo que elegís y sonidos al moverte. Cada canal es una de tus apps, con su propio banner. Al prender la TV aparece una pantalla de aviso blanca, como en la consola, y con OK pasás al menú.
 
 Lo mostré en X: [Le puse la interfaz de la Wii a mi TV](https://x.com/ProtoMauro/status/2112776289312555195).
 
@@ -35,7 +35,7 @@ El repositorio no incluye archivos extraídos de Nintendo. La interfaz se dibuja
 
 Probado en una Philips 65PUD7906/77 (Android TV 11, 1920 x 1080). Debería andar en cualquier Android TV 8.0 o posterior con pantalla 16:9.
 
-![Pantalla de aviso al prender la TV](docs/wii-intro-black.png)
+![Pantalla de aviso al prender la TV](docs/wii-intro.jpg)
 
 ## Qué necesitás
 
@@ -183,7 +183,7 @@ Cambiá lo que quieras y volvé a correr `launcher/build-and-install.sh` para ap
 | Música del menú sí o no | `wii_music`. |
 | Volumen de la música | `wii_music_volume`, en porcentaje del volumen del archivo (100 por defecto). |
 | App de TV en vivo de la lista de entradas | `live_tv_package`. |
-| Textos de la pantalla de aviso | `wii_intro_title`, `wii_intro_body` y `wii_intro_continue` en `res/values*/strings.xml`. Los textos en español usan español neutro. |
+| Textos de la pantalla de aviso | `wii_intro_title`, `wii_intro_body` y `wii_intro_continue` en `res/values*/strings.xml`. `values-es-rAR` usa voseo. |
 | Archivos de audio incluidos | `launcher/app/src/main/res/raw/`; ver `tools/sounds/README.md`. El generador antiguo escribe alternativas en `tools/sounds/build/`. |
 | Colores, tamaños y posiciones | Constantes al principio de `WiiMenuView.java`. El fondo y los paneles están en `WiiBase.java` y `WiiPalette.java`. |
 | App del botón SD | `MEDIA_PLAYER` en `WiiMenuActivity.java`. |
