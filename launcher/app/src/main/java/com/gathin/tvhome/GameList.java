@@ -21,7 +21,8 @@ import java.util.Locale;
  * </pre>
  *
  * The colour and the core are optional: Game Boy and GBA files default to mGBA, NES to FCEUmm and SNES to Snes9x
- * 2010; Neo Geo sets are .zip files, so their lines name fbneo (FinalBurn Neo). tools/games/add.py
+ * 2010, and Mega Drive, Master System and Game Gear to Genesis Plus GX. Neo Geo sets are .zip files, so their
+ * lines name fbneo (FinalBurn Neo). tools/games/add.py
  * copies a ROM to the TV and writes its line, through ThemeProvider where the shell cannot reach Android/data.
  */
 final class GameList {
@@ -87,6 +88,8 @@ final class GameList {
         }
         if (name.endsWith(".nes")) return "fceumm";
         if (name.endsWith(".sfc") || name.endsWith(".smc")) return "snes9x2010";
+        if (name.endsWith(".md") || name.endsWith(".gen") || name.endsWith(".smd")
+                || name.endsWith(".sms") || name.endsWith(".gg")) return "genesis_plus_gx";
         return null;
     }
 
@@ -98,6 +101,9 @@ final class GameList {
         if (name.endsWith(".gb") || name.endsWith(".sgb")) return "Game Boy";
         if (name.endsWith(".nes")) return "NES";
         if (name.endsWith(".sfc") || name.endsWith(".smc")) return "Super Nintendo";
+        if (name.endsWith(".md") || name.endsWith(".gen") || name.endsWith(".smd")) return "Mega Drive";
+        if (name.endsWith(".sms")) return "Master System";
+        if (name.endsWith(".gg")) return "Game Gear";
         if (name.endsWith(".zip") && name.contains("/neogeo/")) return "Neo Geo";
         return null;
     }
@@ -116,9 +122,22 @@ final class GameList {
                 return new String[] {"Start", "Select", "Y", "X"};
             case "Neo Geo":
                 return new String[] {"Start", coin, "C", "D"};
+            case "Mega Drive":
+                return new String[] {"Start", "Mode", "A", "Y"};
+            case "Master System":
+                return new String[] {"Pause", null, null, null};
+            case "Game Gear":
+                return new String[] {"Start", null, null, null};
             default:
                 return new String[] {"Start", "Select", null, null};
         }
+    }
+
+    static String[] buttons(String rom) {
+        String system = system(rom);
+        if ("Mega Drive".equals(system)) return new String[] {"C", "B"};
+        if ("Master System".equals(system) || "Game Gear".equals(system)) return new String[] {"2", "1"};
+        return new String[] {"A", "B"};
     }
 
     /** "#RRGGBB" as an opaque colour; 0 for anything else. */

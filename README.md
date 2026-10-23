@@ -26,7 +26,7 @@ El repositorio no incluye archivos extraídos de Nintendo. La interfaz se dibuja
   - **Sobre** (derecha) abre la lista de entradas HDMI y la TV en vivo.
 - **Manito** que sigue al canal o botón elegido. Al volver de una app está donde la dejaste, aunque Android haya cerrado el menú para liberar memoria.
 - **Canal Mii**: el primer canal. La plaza con tus Miis paseando sobre el piso de cuadrados, los botones de los costados (editar, crear, borrar, ayuda, desfile, mensajes), el silbato que los ordena por nombre, favoritos, color o género, y el editor para crearlos y cambiarlos. Los Miis se guardan en la TV. Sin nada más, todo se dibuja por código; con el paquete del canal usa las caras, los pelos, los íconos y los sonidos originales. El repositorio no trae esos archivos: [`tools/miipack`](tools/miipack/README.md) los toma de sus páginas públicas y arma el paquete en tu computadora.
-- **Canal Juegos**: al lado del Canal Mii. Su cartel es una pradera pixelada con un personajito azul que salta piedras y junta gemas. Adentro, tus juegos son cartuchos en un estante: elegís uno, apretás **Jugar** y arranca en [RetroArch](https://www.retroarch.com) (Game Boy, Game Boy Color, Game Boy Advance, NES, Super Nintendo y Neo Geo). El botón **RetroArch** abre sus ajustes. Los juegos no vienen con el repositorio: ver [Juegos](#juegos).
+- **Canal Juegos**: al lado del Canal Mii. Su cartel es una pradera pixelada con un personajito azul que salta piedras y junta gemas. Adentro, tus juegos son cartuchos en un estante: elegís uno, apretás **Jugar** y arranca en [RetroArch](https://www.retroarch.com) (Game Boy, Game Boy Color, Game Boy Advance, NES, Super Nintendo, Neo Geo, Mega Drive, Master System y Game Gear). El botón **RetroArch** abre sus ajustes. Los juegos no vienen con el repositorio: ver [Juegos](#juegos).
 - **Sonidos** al moverte, al abrir algo, al cambiar de página, al abrir las entradas y al continuar desde el aviso. Usan el volumen de la TV.
 - **Audio incluido**: 7 efectos y 3 músicas, para el menú, la Plaza Mii y el editor. Primero suena el arranque y la música del menú entra un segundo después. No hay que instalar nada aparte.
 - **Pantalla de aviso** al prender la TV. La cierran OK o las flechas, o se va sola a los 12 segundos. No vuelve a aparecer cuando salís de una app.
@@ -140,6 +140,9 @@ El canal Juegos arranca tus juegos en RetroArch. Usá solo juegos tuyos: copiá 
 | NES | `.nes` | Nintendo - NES / Famicom (FCEUmm) |
 | Super Nintendo | `.sfc`, `.smc` | Nintendo - SNES / SFC (Snes9x 2010) |
 | Neo Geo | `.zip` | Arcade (FinalBurn Neo) |
+| Mega Drive / Genesis | `.md`, `.gen`, `.smd` | Sega - MS/GG/MD/CD (Genesis Plus GX) |
+| Master System | `.sms` | Sega - MS/GG/MD/CD (Genesis Plus GX) |
+| Game Gear | `.gg` | Sega - MS/GG/MD/CD (Genesis Plus GX) |
 
 1. **Instalá RetroArch en la TV.** La mayoría de los Android TV son de 32 bits y necesitan `RetroArch_ra32.apk`, de la [página de descargas de RetroArch](https://www.retroarch.com/?page=platforms). Abrilo una vez y bajá los núcleos de tus consolas en Actualizador en línea → Descargar núcleos. Salí con Home.
 2. **Preparalo para el control de la TV** (una sola vez):
@@ -160,7 +163,9 @@ TV_HOST=192.168.1.50 tools/venv/bin/python tools/games/add.py --bios neogeo.zip
 TV_HOST=192.168.1.50 tools/venv/bin/python tools/games/add.py mslug.zip --system neogeo --title "Metal Slug"
 ```
 
-Con el control de la TV, durante el juego:
+**Cartuchos de Sega.** Se agregan con el mismo comando, por ejemplo `TV_HOST=192.168.1.50 tools/venv/bin/python tools/games/add.py "Mi juego.md" --title "Mi juego"`. El núcleo Genesis Plus GX se elige solo; los cartuchos no necesitan BIOS. Se conserva su mapa de botones: en Mega Drive, OK es C, Atrás es B, amarillo es A, rojo es Start, verde es Mode y azul es Y. Mode e Y corresponden al control de seis botones; los juegos que usan X y Z necesitan un joystick. En Master System y Game Gear, OK es 2 y Atrás es 1; rojo es Pause en Master System y Start en Game Gear. El estante muestra los botones de la consola elegida. Los archivos `.bin` son ambiguos y siguen necesitando un núcleo explícito; la detección automática cubre las extensiones de cartuchos de la tabla, no Sega CD ni 32X.
+
+Con el control de la TV, durante el juego (los botones de Sega están descritos arriba):
 
 | Tecla | Botón |
 | --- | --- |

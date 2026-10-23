@@ -47,8 +47,17 @@ class FileNamesTest(unittest.TestCase):
         self.assertEqual(add.folder("x.nes"), "nes")
         self.assertEqual(add.folder("x.SMC"), "snes")
         self.assertEqual(add.folder("mslug.zip", system="neogeo"), "neogeo")
-        self.assertIsNone(add.folder("x.md"))
+        self.assertIsNone(add.folder("x.iso"))
         self.assertEqual(add.folder("x.md", core="genesis_plus_gx"), "md")
+
+    def test_sega_cartridges_share_a_folder_per_console(self):
+        for extension, console in (("md", "md"), ("GEN", "md"), ("smd", "md"),
+                                   ("SMS", "sms"), ("gg", "gg")):
+            with self.subTest(extension=extension):
+                self.assertEqual(add.folder("game." + extension), console)
+        self.assertIsNone(add.folder("game.bin"))
+        self.assertIsNone(add.folder("game.cue"))
+        self.assertEqual(add.folder("game.bin", core="genesis_plus_gx"), "bin")
 
     def test_names_are_safe_for_the_shell(self):
         self.assertEqual(add.safe_name("/home/me/Mi juego (USA).gba"), "Mi juego (USA).gba")
@@ -71,6 +80,12 @@ class RetroArchConfigTest(unittest.TestCase):
 
 
 class RemapTest(unittest.TestCase):
+    def test_sega_keeps_the_core_button_layout_and_uses_player_one(self):
+        remap = add.CORE_REMAPS["Genesis Plus GX"]
+        for port in range(2, 5):
+            self.assertEqual(add.cfg_value(remap, f"input_remap_port_p{port}"), "0")
+        self.assertNotIn("input_player", remap)
+
     def test_every_core_plays_the_remote_as_player_one(self):
         for lib, rmp in add.CORE_REMAPS.items():
             self.assertIn('input_remap_port_p2 = "0"', rmp, lib)

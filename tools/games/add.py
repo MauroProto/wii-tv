@@ -10,8 +10,8 @@
 
 A game is copied to /storage/emulated/0/RetroArch/roms/<system>/ and gets a line in the launcher's games.txt
 (see GameList.java), written through its ThemeProvider. --setup changes a few RetroArch settings and adds the
-button maps in tools/games/retroarch/ so the remote plays: OK = A, Back = B, red/green/yellow/blue =
-Start/Select/Y/X (L/R on the Game Boy Advance; coin and C/D on the Neo Geo), hold red for RetroArch's menu.
+button maps in tools/games/retroarch/: OK and Back are RetroPad A and B, and red/green/yellow/blue are
+Start/Select/Y/X. The channel labels each console's buttons; hold red for RetroArch's menu.
 
 Only use games you own: dump your own cartridges.
 """
@@ -31,7 +31,8 @@ TMP = "/data/local/tmp"
 # Same order as RetroArch.PACKAGES in the launcher.
 PACKAGES = ("com.retroarch.aarch64", "com.retroarch", "com.retroarch.ra32")
 # The consoles the launcher starts without a core named (GameList.defaultCore), and their roms/ subfolder.
-FOLDERS = {".gba": "gba", ".gb": "gb", ".gbc": "gb", ".sgb": "gb", ".nes": "nes", ".sfc": "snes", ".smc": "snes"}
+FOLDERS = {".gba": "gba", ".gb": "gb", ".gbc": "gb", ".sgb": "gb", ".nes": "nes", ".sfc": "snes", ".smc": "snes",
+           ".md": "md", ".gen": "md", ".smd": "md", ".sms": "sms", ".gg": "gg"}
 # Consoles whose files are plain .zip sets: --system picks the folder and the core.
 SYSTEMS = {"neogeo": ("neogeo", "fbneo")}
 HEADER = "# title | ROM path | label colour | libretro core"
@@ -62,9 +63,10 @@ CORE_REMAPS = {
     "FCEUmm": REMAP,
     "Snes9x 2010": REMAP,
     "FinalBurn Neo": REMAP + NEOGEO_AB,
+    "Genesis Plus GX": REMAP,
 }
 CORES = ("Nintendo - Game Boy Advance (mGBA), Nintendo - NES / Famicom (FCEUmm), "
-         "Nintendo - SNES / SFC (Snes9x 2010), Arcade (FinalBurn Neo)")
+         "Nintendo - SNES / SFC (Snes9x 2010), Arcade (FinalBurn Neo), Sega - MS/GG/MD/CD (Genesis Plus GX)")
 
 
 # ---- games.txt -----------------------------------------------------------------------------------------
@@ -237,8 +239,8 @@ def add(dev, local, title, color, core, system=None):
         core = core or SYSTEMS[system][1]
     sub = folder(local, core, system)
     if sub is None:
-        sys.exit(f"{local}: the channel starts .gba, .gb, .gbc, .nes, .sfc and .smc files on its own; for a Neo Geo "
-                 "set add --system neogeo, and for anything else name a core with --core (e.g. --core genesis_plus_gx).")
+        sys.exit(f"{local}: the channel starts {', '.join(FOLDERS)} files on its own; for a Neo Geo "
+                 "set add --system neogeo, and for anything else name a core with --core.")
     remote_dir = f"{ROMS}/{sub}"
     remote = f"{remote_dir}/{safe_name(local)}"
     sh(dev, f"mkdir -p {shlex.quote(remote_dir)}")
@@ -291,7 +293,8 @@ def setup(dev):
         sh(dev, f"mkdir -p {shlex.quote(remaps + '/' + lib)}")
         sh(dev, f"[ -f {path} ] && [ ! -f {path}.before-wii-tv ] && cp {path} {path}.before-wii-tv")
         put_bytes(dev, rmp.encode(), f"{remaps}/{lib}/{lib}.rmp")
-    sh(dev, f"mkdir -p {ROMS}/gba {ROMS}/gb {ROMS}/nes {ROMS}/snes {ROMS}/neogeo")
+    folders = set(FOLDERS.values()) | {s[0] for s in SYSTEMS.values()}
+    sh(dev, "mkdir -p " + " ".join(f"{ROMS}/{name}" for name in sorted(folders)))
     print(f"RetroArch ({pkg}) is set up; its old settings are in {cfg}.before-wii-tv")
     print(f"In RetroArch, if you have not yet: Online Updater > Core Downloader > the cores for your consoles ({CORES}), "
           "and Online Updater > Update Controller Profiles for Bluetooth gamepads.")

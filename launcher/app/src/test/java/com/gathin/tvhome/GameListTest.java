@@ -86,7 +86,40 @@ public class GameListTest {
         assertEquals("NES", GameList.system("/r/nes/a.nes"));
         assertEquals("Super Nintendo", GameList.system("/r/snes/a.SMC"));
         assertNull(GameList.system("/r/arcade/a.zip"));
-        assertNull(GameList.system("/r/a.md"));
+        assertNull(GameList.system("/r/a.iso"));
+    }
+
+    @Test
+    public void segaCartridgesLaunchWithoutAnExplicitCore() {
+        String[][] files = {{"md", "Mega Drive"}, {"GEN", "Mega Drive"}, {"smd", "Mega Drive"},
+                {"SMS", "Master System"}, {"gg", "Game Gear"}};
+        for (String[] file : files) {
+            List<GameList.Game> games = GameList.parse("Sega game | /roms/game." + file[0]);
+            assertEquals(file[0], 1, games.size());
+            assertEquals("genesis_plus_gx", games.get(0).core);
+            assertEquals(file[1], GameList.system(games.get(0).rom));
+        }
+        assertTrue(GameList.parse("Ambiguous | /roms/game.bin\nDisc | /roms/game.cue").isEmpty());
+    }
+
+    @Test
+    public void explicitSegaCoreStillOverridesTheDefault() {
+        GameList.Game game = GameList.parse("Sega game | /roms/game.md | | picodrive").get(0);
+        assertEquals("picodrive", game.core);
+        assertEquals("Mega Drive", GameList.system(game.rom));
+    }
+
+    @Test
+    public void segaLegendMatchesGenesisPlusGxButtons() {
+        assertArrayEquals(new String[] {"C", "B"}, GameList.buttons("/roms/game.MD"));
+        assertArrayEquals(new String[] {"2", "1"}, GameList.buttons("/roms/game.sms"));
+        assertArrayEquals(new String[] {"2", "1"}, GameList.buttons("/roms/game.GG"));
+        assertArrayEquals(new String[] {"A", "B"}, GameList.buttons("/roms/game.gba"));
+        assertArrayEquals(new String[] {"A", "B"}, GameList.buttons("/roms/game.sfc"));
+        assertArrayEquals(new String[] {"A", "B"}, GameList.buttons("/roms/neogeo/game.zip"));
+        assertArrayEquals(new String[] {"Start", "Mode", "A", "Y"}, GameList.pad("/roms/game.gen", "Coin"));
+        assertArrayEquals(new String[] {"Pause", null, null, null}, GameList.pad("/roms/game.sms", "Coin"));
+        assertArrayEquals(new String[] {"Start", null, null, null}, GameList.pad("/roms/game.gg", "Coin"));
     }
 
     @Test
