@@ -18,13 +18,13 @@ El repositorio no incluye archivos extraídos de Nintendo. La interfaz se dibuja
 
 ## Qué trae
 
-- **Canales**: 4 columnas por 3 filas por página. La primera columna de la página siguiente asoma a la derecha y las flechas cambian de página. Tus apps llenan los canales y los que sobran quedan vacíos.
-- **Reloj y fecha**: reloj de segmentos de 12 horas con AM/PM, y la fecha corta en el idioma de la TV.
+- **Canales**: 4 columnas por 3 filas por página. La primera columna de la página siguiente asoma a la derecha y las flechas cambian de página. Tus apps llenan los canales y los que sobran quedan vacíos. Al abrir un canal, la app crece desde su cuadro, como en la consola. Para cambiar un canal de lugar, mantené OK sobre él y movelo con las flechas; OK lo suelta y el orden queda guardado en la TV.
+- **Reloj y fecha**: reloj de segmentos, de 12 horas con AM/PM o de 24 horas según el formato de hora de la TV, y la fecha corta en el idioma de la TV.
 - **Botones de abajo**:
   - **wiiOS** (izquierda) abre los Ajustes de Android TV.
   - **SD** abre el reproductor multimedia de la TV (pendrive o disco USB).
   - **Sobre** (derecha) abre la lista de entradas HDMI y la TV en vivo.
-- **Manito** que sigue al canal o botón elegido.
+- **Manito** que sigue al canal o botón elegido. Al volver de una app está donde la dejaste, aunque Android haya cerrado el menú para liberar memoria.
 - **Canal Mii**: el primer canal. La plaza con tus Miis paseando sobre el piso de cuadrados, los botones de los costados (editar, crear, borrar, ayuda, desfile, mensajes), el silbato que los ordena por nombre, favoritos, color o género, y el editor para crearlos y cambiarlos. Los Miis se guardan en la TV. Sin nada más, todo se dibuja por código; con el paquete del canal usa las caras, los pelos, los íconos y los sonidos originales. El repositorio no trae esos archivos: [`tools/miipack`](tools/miipack/README.md) los toma de sus páginas públicas y arma el paquete en tu computadora.
 - **Canal Juegos**: al lado del Canal Mii. Su cartel es una pradera pixelada con un personajito azul que salta piedras y junta gemas. Adentro, tus juegos son cartuchos en un estante: elegís uno, apretás **Jugar** y arranca en [RetroArch](https://www.retroarch.com) con mGBA (Game Boy, Game Boy Color y Game Boy Advance). El botón **RetroArch** abre sus ajustes. Los juegos no vienen con el repositorio: ver [Juegos](#juegos).
 - **Sonidos** al moverte, al abrir algo, al cambiar de página, al abrir las entradas y al continuar desde el aviso. Usan el volumen de la TV.
@@ -124,9 +124,11 @@ Mientras la depuración esté activada, cualquier computadora que ya autorizaste
 | Tecla | Qué hace |
 | --- | --- |
 | Flechas | Mueven la manito. Desde la última columna, la flecha derecha pasa de página. Desde la fila de abajo, la flecha abajo baja a los botones. |
+| CH+ / CH- | Pasan de página (también avance y retroceso rápido). |
 | OK | Abre el canal o el botón elegido. |
+| Mantener OK | Agarra el canal para moverlo: las flechas lo cambian de lugar con el de al lado, y OK o Atrás lo sueltan. |
 | Atrás | Cierra la lista de entradas o la pantalla de aviso. |
-| Home | Vuelve al menú. |
+| Home | Vuelve al menú. Si ya estás en el menú, vuelve a la primera página. |
 
 ## Juegos
 

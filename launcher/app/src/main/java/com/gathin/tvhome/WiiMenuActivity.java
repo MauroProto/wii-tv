@@ -1,6 +1,7 @@
 package com.gathin.tvhome;
 
 import android.app.Activity;
+import android.app.ActivityOptions;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -9,6 +10,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.media.tv.TvContract;
@@ -21,12 +23,14 @@ import android.provider.Settings;
 import android.view.KeyEvent;
 import android.widget.Toast;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
@@ -36,6 +40,13 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     private static final String MEDIA_PLAYER = "com.mediatek.wwtv.mediaplayer";
     /** Debug: freeze the menu in the reference capture's state, for comparing screenshots against it. */
     static final String EXTRA_REF_POSE = "ref_pose";
+    /** The owner's channel order, in Order's format; the other home screen keeps its own in Order.FILE_NAME. */
+    private static final String ORDER_FILE = "wii-order.txt";
+    private static final String PREFS = "wii_menu";
+    /** Where the hand was when the menu last left the screen, in PREFS: a channel key, or a slot or button. */
+    private static final String HAND_CHANNEL = "hand_channel";
+    private static final String HAND_SLOT = "hand_slot";
+    private static final String HAND_PAGE = "hand_page";
 
     private WiiMenuView menu;
     private WiiSounds sounds;
@@ -45,11 +56,16 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     private boolean introPending;
     private boolean appsDirty = true;
     private boolean resumed;
+    private final Rect zoomFrom = new Rect();
     private String liveTvPkg;
     private MiiStore miiStore;
     private int miiVersion = -1;
     private Typeface miiFace;
     private GamesBanner gamesBanner;
+    /** The channel keys in the usual order, before the owner's: putting them back that way forgets the saved one. */
+    private List<String> usualOrder = Collections.emptyList();
+    /** The hand goes back where it was on the first resume, unless the menu starts as at power-on. */
+    private boolean handPending;
 
     private final BroadcastReceiver screenReceiver = new BroadcastReceiver() {
         @Override
@@ -106,6 +122,9 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         }
         liveTvPkg = getString(R.string.live_tv_package);
         miiStore = new MiiStore(this);
+        // No welcome screen means Android closed the menu while an app ran, to free memory; coming back to it,
+        // the hand goes back to the channel that was opened.
+        handPending = !introPending;
 
         IntentFilter screen = new IntentFilter(Intent.ACTION_SCREEN_ON);
         screen.addAction(Intent.ACTION_SCREEN_OFF);
@@ -128,6 +147,12 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         super.onResume();
         resumed = true;
         if (appsDirty || miiStore.version() != miiVersion) reloadApps();
+        if (handPending) {
+            handPending = false;
+            SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+            menu.placeHand(prefs.getString(HAND_CHANNEL, null), prefs.getInt(HAND_SLOT, 0),
+                    prefs.getInt(HAND_PAGE, 0));
+        }
         menu.start();
         if (introPending) {
             introPending = false;
@@ -145,6 +170,19 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         music.pause();
         fileMusic.stop();
         menu.stop();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        int slot = menu.handSlot();
+        if (slot == Integer.MIN_VALUE) return;
+        // putString(null) removes the key, so an empty slot or a button does not bring back the last channel.
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                .putString(HAND_CHANNEL, menu.handChannel())
+                .putInt(HAND_SLOT, slot)
+                .putInt(HAND_PAGE, menu.handPage())
+                .apply();
     }
 
     @Override
@@ -190,9 +228,13 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        menu.closeMenu();
+        boolean refPose = intent.getBooleanExtra(EXTRA_REF_POSE, false);
         if (intent.getBooleanExtra("show_intro", false)) introPending = true;
-        if (intent.getBooleanExtra(EXTRA_REF_POSE, false)) {
+        // Window focus, not onStart/onStop: coming back from an app, Android starts the menu again before it
+        // hands over the Home intent, and gives the window its focus only after.
+        if (menu.hasWindowFocus() && !refPose) menu.home();
+        else menu.closeMenu();
+        if (refPose) {
             introPending = false;
             menu.setRefPose(true);
         }
@@ -200,8 +242,14 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (menu.handleKey(keyCode)) return true;
+        if (menu.handleKey(event)) return true;
         return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (menu.handleKeyUp(keyCode)) return true;
+        return super.onKeyUp(keyCode, event);
     }
 
     @Override
@@ -217,7 +265,7 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     private boolean firstStartThisBoot() {
         int boot = Settings.Global.getInt(getContentResolver(), Settings.Global.BOOT_COUNT, -1);
         if (boot < 0) return true;
-        SharedPreferences prefs = getSharedPreferences("wii_menu", MODE_PRIVATE);
+        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         if (prefs.getInt("intro_boot", -1) == boot) return false;
         prefs.edit().putInt("intro_boot", boot).apply();
         return true;
@@ -261,7 +309,29 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         while (at < channels.size() && dock.contains(channels.get(at).key)) at++;
         channels.add(at, miiChannel());
         if (games) channels.add(at + 1, gamesChannel());
+        List<String> usual = new ArrayList<>(channels.size());
+        for (WiiMenuView.Channel ch : channels) usual.add(ch.key);
+        usualOrder = usual;
+        // Channels the owner moved come first in that order; the sort is stable, so the rest (new installs too)
+        // keep the usual order after them.
+        Map<String, Integer> saved = Order.ranks(Order.load(orderFile()), dock);
+        if (!saved.isEmpty()) Collections.sort(channels, (a, b) -> Order.compare(saved, a.key, b.key));
         menu.setChannels(channels);
+    }
+
+    private File orderFile() {
+        return new File(getFilesDir(), ORDER_FILE);
+    }
+
+    @Override
+    public void onChannelsMoved(List<String> keys) {
+        if (keys.equals(usualOrder)) {
+            // Back to the usual order: with no file, new apps go where they would have gone anyway.
+            orderFile().delete();
+            return;
+        }
+        List<String> dock = Arrays.asList(getResources().getStringArray(R.array.dock_apps));
+        Order.save(orderFile(), new Order(Order.dockKey(dock), keys));
     }
 
     /** The built-in Games channel, after the Mii channel; its tile is a pixel meadow with a runner. */
@@ -292,9 +362,19 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     }
 
     private void open(Intent intent) {
+        open(intent, false);
+    }
+
+    /** fromFocus: the app grows out of the chosen channel or button, as a channel zoomed open on the console. */
+    private void open(Intent intent, boolean fromFocus) {
         try {
-            startActivity(intent);
-            overridePendingTransition(R.anim.app_open_enter, R.anim.app_open_exit);
+            if (fromFocus && menu.focusBounds(zoomFrom)) {
+                startActivity(intent, ActivityOptions.makeScaleUpAnimation(menu, zoomFrom.left, zoomFrom.top,
+                        zoomFrom.width(), zoomFrom.height()).toBundle());
+            } else {
+                startActivity(intent);
+                overridePendingTransition(R.anim.app_open_enter, R.anim.app_open_exit);
+            }
         } catch (ActivityNotFoundException | SecurityException e) {
             Toast.makeText(this, R.string.not_available, Toast.LENGTH_SHORT).show();
         }
@@ -302,12 +382,12 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
 
     @Override
     public void onChannel(WiiMenuView.Channel channel) {
-        open(channel.intent);
+        open(channel.intent, true);
     }
 
     @Override
     public void onSettingsButton() {
-        open(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        open(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), true);
     }
 
     @Override
@@ -318,7 +398,7 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
             Toast.makeText(this, R.string.not_available, Toast.LENGTH_SHORT).show();
             return;
         }
-        open(media.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        open(media.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), true);
     }
 
     @Override

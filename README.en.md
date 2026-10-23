@@ -18,13 +18,13 @@ The repository includes no files extracted from Nintendo. The interface is drawn
 
 ## Features
 
-- **Channels**: 4 columns by 3 rows per page. The first column of the next page shows at the right edge, and the arrows turn the page. Your apps fill the channels; the rest stay empty.
-- **Clock and date**: a 12-hour segment clock with AM/PM, and the short date in the TV's language.
+- **Channels**: 4 columns by 3 rows per page. The first column of the next page shows at the right edge, and the arrows turn the page. Your apps fill the channels; the rest stay empty. Opening a channel grows the app out of its frame, as on the console. To move a channel, hold OK on it and carry it with the arrows; OK puts it down and the TV keeps the order.
+- **Clock and date**: a segment clock, 12-hour with AM/PM or 24-hour to match the TV's time format, and the short date in the TV's language.
 - **Bottom buttons**:
   - **wiiOS** (left) opens Android TV Settings.
   - **SD** opens the TV's media player (USB drives).
   - **Envelope** (right) lists the HDMI inputs and live TV.
-- **Pointing hand** that follows the selected channel or button.
+- **Pointing hand** that follows the selected channel or button. Back from an app, it is where you left it, even if Android closed the menu to free memory.
 - **Mii Channel**: the first channel. The plaza with your Miis walking around on the squared floor, the side buttons (edit, new, delete, help, parade, mail), the whistle that lines them up by name, favourite, colour or gender, and the editor to make and change them. Miis are saved on the TV. On its own everything is drawn in code; with the channel pack it uses the original faces, hair, icons and sounds. The repository does not include those files: [`tools/miipack`](tools/miipack/README.md) (in Spanish) fetches them from their public pages and builds the pack on your computer.
 - **Games channel**: next to the Mii Channel. Its tile is a pixel-art meadow with a little blue runner hopping over rocks for gems. Inside, your games are cartridges on a shelf: pick one, press **Play** and it starts in [RetroArch](https://www.retroarch.com) with mGBA (Game Boy, Game Boy Color and Game Boy Advance). The **RetroArch** button opens its settings. The repository ships no games; see [Games](#games).
 - **Sounds** for moving, opening, turning the page, opening the inputs list and leaving the notice screen. They follow the TV volume.
@@ -66,9 +66,11 @@ Run every command from the repository folder, and replace `192.168.1.50` with yo
 | Key | Action |
 | --- | --- |
 | Arrows | Move the hand. Right from the last column turns the page; down from the bottom row goes to the buttons. |
+| CH+ / CH- | Turn the page (fast-forward and rewind too). |
 | OK | Opens the selected channel or button. |
+| Hold OK | Picks the channel up to move it: the arrows swap it with the next one, and OK or Back put it down. |
 | Back | Closes the inputs list or the notice screen. |
-| Home | Back to the menu. |
+| Home | Back to the menu. On the menu, back to the first page. |
 
 ## Games
 
