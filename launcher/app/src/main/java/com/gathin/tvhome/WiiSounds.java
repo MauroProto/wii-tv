@@ -7,7 +7,7 @@ import android.os.SystemClock;
 import android.util.Log;
 
 /**
- * The channel menu's interface sounds (res/raw/wii_*.wav).
+ * The channel menu's interface sounds (res/raw/wii_*.ogg).
  * They play on the media stream, so the remote's volume keys set how loud they are.
  */
 final class WiiSounds {
