@@ -1,3 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Use the neutral Spanish strings from values-es for every Spanish locale. -->
-<resources/>
+<!-- Spanish (Argentina): only the strings worded differently from values-es. -->
+<resources>
+    <string name="wii_intro_body">Ponete a una distancia cómoda de la pantalla y descansá la vista de vez en cuando. Tus apps, las entradas HDMI y la TV en vivo están donde siempre.</string>
+    <string name="wii_intro_continue">Presioná OK para continuar.</string>
+    <string name="mii_edit_pick">Elegí el Mii que querés editar.</string>
+    <string name="mii_full">La plaza está llena. Borrá un Mii para hacer lugar.</string>
+    <string name="mii_trash_hint">Primero elegí un Mii, o llevalo hasta el botón de borrar.</string>
+    <string name="mii_remote_none">Acá no hay un control de Wii para llevar Miis.</string>
+    <string name="mii_welcome_body">Estos Miis viven acá. Creá el tuyo con los botones de la izquierda, o señalá cualquiera y presioná OK.</string>
+    <string name="mii_help_body">Señalá un Mii y presioná OK para elegirlo; presioná OK otra vez para levantarlo y llevarlo. Soltalo en el botón de borrar para borrarlo, o en el de editar para cambiarlo. El silbato de abajo a la derecha los pone en fila y el botón de arriba a la derecha arranca un desfile.</string>
+    <string name="mii_new_gender">Elegí el sexo.</string>
+    <string name="mii_new_how">¿Cómo querés empezar?</string>
+    <string name="mii_lookalike_title">Elegí un parecido</string>
+    <string name="games_empty_body">Agregalos desde la computadora con tools/games/add.py.</string>
+    <string name="games_missing">Instalá RetroArch para jugar.</string>
+    <string name="games_key_menu">Mantené el rojo: menú de RetroArch</string></resources>
