@@ -77,7 +77,6 @@ final class GamesView extends View {
     private final Typeface bold;
     private final Typeface regular;
     private final String menuLabel, playLabel, retroLabel, emptyTitle, emptyBody, missing, coin;
-    private final String[] keys;
     private final TextPaint text = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -92,6 +91,7 @@ final class GamesView extends View {
     private Bitmap[] carts = new Bitmap[0];
     /** Each game's GameList.pad, for the legend. */
     private String[][] pads = new String[0][];
+    private String[][] keys = new String[0][];
     private float[] lift = new float[0];
     private final float[] btnLift = new float[3];
     private boolean hasRetroArch;
@@ -132,8 +132,6 @@ final class GamesView extends View {
         emptyBody = context.getString(R.string.games_empty_body);
         missing = context.getString(R.string.games_missing);
         coin = context.getString(R.string.games_coin);
-        keys = new String[] {context.getString(R.string.games_key_a), context.getString(R.string.games_key_b),
-                context.getString(R.string.games_key_menu)};
         scene = new PixelScene(context.getString(R.string.games_channel_name), bold);
         hand = new WiiHand(bold);
         pix.setFilterBitmap(false);
@@ -167,9 +165,14 @@ final class GamesView extends View {
         hasRetroArch = retroArch;
         carts = new Bitmap[list.size()];
         pads = new String[list.size()][];
+        keys = new String[list.size()][];
         for (int i = 0; i < carts.length; i++) {
             carts[i] = PixelArt.cartridge(list.get(i).color, list.get(i).title);
             pads[i] = GameList.pad(list.get(i).rom, coin);
+            String[] buttons = GameList.buttons(list.get(i).rom);
+            keys[i] = new String[] {getContext().getString(R.string.games_key_a, buttons[0]),
+                    getContext().getString(R.string.games_key_b, buttons[1]),
+                    getContext().getString(R.string.games_key_menu)};
         }
         lift = new float[list.size()];
         focus = 0;
@@ -562,11 +565,11 @@ final class GamesView extends View {
         text.setTextSize(32f * s);
         text.setColor(subColor);
         c.drawText(sub, 960f * s, SUB_Y * s, text);
-        if (!games.isEmpty() && hasRetroArch) drawLegend(c, pads[focus]);
+        if (!games.isEmpty() && hasRetroArch) drawLegend(c, pads[focus], keys[focus]);
     }
 
-    /** How the remote plays: its colour buttons as the console's (pad), OK and Back as A and B. */
-    private void drawLegend(Canvas c, String[] pad) {
+    /** The remote's colour buttons, OK and Back as the console's own buttons. */
+    private void drawLegend(Canvas c, String[] pad, String[] keys) {
         text.setTypeface(regular);
         text.setTextSize(27f * s);
         text.setTextAlign(Paint.Align.LEFT);
