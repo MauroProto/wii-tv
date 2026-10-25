@@ -5,6 +5,8 @@ import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.annotation.TargetApi;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -19,7 +21,8 @@ final class WiiMusic {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final AudioManager manager;
     private final AudioAttributes attributes;
-    private final AudioFocusRequest focus;
+    private final Object focus;
+    private final AudioManager.OnAudioFocusChangeListener legacyListener = this::focusChanged;
     private MediaPlayer player, jingle;
     private int resource;
     private boolean failed;
@@ -50,9 +53,36 @@ final class WiiMusic {
         attributes = new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_GAME)
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build();
-        focus = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+        focus = Build.VERSION.SDK_INT >= 26 ? buildFocus() : null;
+    }
+
+    @TargetApi(26)
+    private Object buildFocus() {
+        return new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setAudioAttributes(attributes)
                 .setOnAudioFocusChangeListener(this::focusChanged, handler).build();
+    }
+
+    @TargetApi(26)
+    private int request26() {
+        return manager.requestAudioFocus((AudioFocusRequest) focus);
+    }
+
+    @TargetApi(26)
+    private void abandon26() {
+        manager.abandonAudioFocusRequest((AudioFocusRequest) focus);
+    }
+
+    private int requestFocusCompat() {
+        if (Build.VERSION.SDK_INT >= 26) return request26();
+        return manager.requestAudioFocus(legacyListener, AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN);
+    }
+
+    private void abandonFocus() {
+        if (manager == null) return;
+        if (Build.VERSION.SDK_INT >= 26) abandon26();
+        else manager.abandonAudioFocus(legacyListener);
     }
 
     void setTrack(int resource) {
@@ -130,7 +160,7 @@ final class WiiMusic {
         resumed = false;
         cancelEntrance();
         pausePlayer(player);
-        if (focused) manager.abandonAudioFocusRequest(focus);
+        if (focused) abandonFocus();
         focused = false;
     }
 
@@ -142,7 +172,7 @@ final class WiiMusic {
 
     private boolean requestFocus() {
         if (!focused && manager != null) {
-            focused = manager.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
+            focused = requestFocusCompat() == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
             if (focused) {
                 ducked = false;
                 volume();
@@ -154,7 +184,7 @@ final class WiiMusic {
     private void focusChanged(int change) {
         if (change == AudioManager.AUDIOFOCUS_GAIN) {
             if (!resumed) {
-                manager.abandonAudioFocusRequest(focus);
+                abandonFocus();
                 focused = false;
                 return;
             }

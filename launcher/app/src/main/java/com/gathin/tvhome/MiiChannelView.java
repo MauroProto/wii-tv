@@ -81,7 +81,7 @@ final class MiiChannelView extends View {
         if (pack != null) MiiPlaza.usePack(pack);
         Typeface regular;
         try {
-            regular = context.getResources().getFont(R.font.outfit_medium);
+            regular = FontCompat.load(context.getResources(), R.font.outfit_medium);
         } catch (RuntimeException e) {
             regular = Typeface.SANS_SERIF;
         }
