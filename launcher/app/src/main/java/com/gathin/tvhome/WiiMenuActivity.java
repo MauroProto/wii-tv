@@ -350,7 +350,7 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         if (miiFace == null) {
             Typeface regular;
             try {
-                regular = getResources().getFont(R.font.outfit_medium);
+                regular = FontCompat.load(getResources(), R.font.outfit_medium);
             } catch (RuntimeException e) {
                 regular = Typeface.SANS_SERIF;
             }

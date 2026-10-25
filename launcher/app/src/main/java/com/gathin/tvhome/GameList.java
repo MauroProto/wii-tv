@@ -5,7 +5,6 @@ import android.content.Context;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -53,7 +52,13 @@ final class GameList {
         File f = new File(dir, FILE);
         if (!f.isFile()) return Collections.emptyList();
         try {
-            return parse(new String(Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8));
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
+                byte[] buf = new byte[4096];
+                int n;
+                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            }
+            return parse(new String(out.toByteArray(), StandardCharsets.UTF_8));
         } catch (IOException | SecurityException e) {
             return Collections.emptyList();
         }
