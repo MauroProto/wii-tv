@@ -62,6 +62,8 @@ public class WiiMenuView extends View {
         void onInputsButton();
         /** The welcome screen started to leave: the menu is coming up, as after power-on. */
         void onIntroDismissed();
+        /** The hand a phone steers came onto a channel, a button or a page arrow. */
+        default void onPointedAt() { }
     }
 
     static final class Channel {
@@ -135,6 +137,10 @@ public class WiiMenuView extends View {
     private static final float SD_T = 897f;
     private static final float SD_R = 424f;
     private static final float SD_B = 994f;
+    /** Reference px around the small SD button and the arrows that still count as on them for the free hand. */
+    private static final float SD_PAD = 16f, ARROW_PAD = 24f;
+    /** Reference px past its edges that the free hand stays on what it is on. */
+    private static final float STAY_MARGIN = 12f;
 
     private static final float DIGIT_W = 50f;
     private static final float DIGIT_H = 79f;
@@ -171,6 +177,7 @@ public class WiiMenuView extends View {
     private final Listener listener;
     private final List<Channel> channels = new ArrayList<>();
     private int pages = MIN_PAGES;
+    /** A slot or a button; Integer.MIN_VALUE in the reference pose, or while the free hand points at nothing. */
     private int focus;
     private int page;
     private float pagePos;
@@ -209,6 +216,11 @@ public class WiiMenuView extends View {
     private boolean carrying;
     /** The channel order when it was picked up, to save only when it moved. */
     private List<String> orderBefore;
+    /** A phone steers the hand (Wiimote): it goes where it is pointed, and what is under it is the focus. */
+    private boolean freeHand;
+    private float freeX, freeY;
+    /** The page arrow under the free hand: 1 the right one, -1 the left one, 0 none. */
+    private int arrowUnder;
 
     private float s = 1f;
     private int w = 1, h = 1;
@@ -480,6 +492,8 @@ public class WiiMenuView extends View {
             return;
         }
         if (refPose || introAlpha > 0f) return;
+        freeHand = false;
+        arrowUnder = 0;
         int before = focus, pageBefore = page;
         page = 0;
         focus = 0;
@@ -545,6 +559,7 @@ public class WiiMenuView extends View {
             return true;
         }
         if (menuOpen) return menuKey(keyCode);
+        if (freeHand && isDpad(keyCode) && leaveFreeHand()) return true;
         if (carrying) return carryKey(keyCode, event.getRepeatCount());
         switch (keyCode) {
             case KeyEvent.KEYCODE_DPAD_LEFT:
@@ -624,11 +639,17 @@ public class WiiMenuView extends View {
         page = to;
         if (focus >= 0) focus = to * SLOTS_PER_PAGE + focus % SLOTS_PER_PAGE;
         sound(WiiSounds.PAGE);
+        if (freeHand) pointAt(false);
         scheduleHoverSound();
         invalidate();
     }
 
     private void activate() {
+        if (focus == Integer.MIN_VALUE) {
+            // The free hand on a page arrow turns the page; on nothing, OK does nothing.
+            if (arrowUnder != 0) turnPage(arrowUnder);
+            return;
+        }
         removeCallbacks(hoverSound);
         boolean bigButton = focus == BTN_SETTINGS || focus == BTN_SD || focus == BTN_INPUTS;
         sound(bigButton ? WiiSounds.BIG_BUTTON : WiiSounds.SELECT);
@@ -730,6 +751,109 @@ public class WiiMenuView extends View {
         return keys;
     }
 
+    // ---- the free hand: a phone points it (Wiimote), and what is under it is the focus -----------------
+
+    /** A phone moved the hand dx, dy px of a 1920-wide screen. */
+    void pointerMove(float dx, float dy) {
+        if (refPose || introAlpha > 0f || menuOpen || !started) return;
+        if (!freeHand) {
+            freeHand = true;
+            freeX = handX;
+            freeY = handY;
+        }
+        freeX = Math.max(0f, Math.min(w - 1f, freeX + dx * s));
+        freeY = Math.max(0f, Math.min(h - 1f, freeY + dy * s));
+        pointAt(true);
+        invalidate();
+    }
+
+    /** The arrows take the hand back. True when this press only gave it a place, having been on nothing. */
+    private boolean leaveFreeHand() {
+        freeHand = false;
+        arrowUnder = 0;
+        if (focus != Integer.MIN_VALUE) return false;
+        focus = nearestSlot(handX / s, handY / s);
+        sound(WiiSounds.MOVE);
+        scheduleHoverSound();
+        invalidate();
+        return true;
+    }
+
+    /** What is under the free hand becomes the focus; cue: a tick, and a buzz on the phone, when it is something. */
+    private void pointAt(boolean cue) {
+        float x = freeX / s, y = freeY / s;
+        if (carrying) {
+            // The carried channel follows the hand from slot to slot.
+            int to = slotAt(x, y);
+            if (to >= 0) carryTo(to);
+            return;
+        }
+        int on = Integer.MIN_VALUE, arrow = 0;
+        // Reaching a little past what it is on, so a hand trembling at a border does not flicker between two.
+        if (focus != Integer.MIN_VALUE && under(focus, x, y, STAY_MARGIN)) {
+            on = focus;
+        } else {
+            on = slotAt(x, y);
+            if (on < 0) on = Integer.MIN_VALUE;
+            for (int b = BTN_SETTINGS; on == Integer.MIN_VALUE && b >= BTN_INPUTS; b--) {
+                if (under(b, x, y, 0f)) on = b;
+            }
+        }
+        if (on == Integer.MIN_VALUE) arrow = arrowAt(x, y);
+        if (on == focus && arrow == arrowUnder) return;
+        focus = on;
+        arrowUnder = arrow;
+        boolean something = arrow != 0 || on != Integer.MIN_VALUE && (on < 0 || on < channels.size());
+        if (cue && something) {
+            sound(WiiSounds.MOVE);
+            listener.onPointedAt();
+        }
+        scheduleHoverSound();
+        invalidate();
+    }
+
+    /** Whether (x, y), in reference px, is on this slot of the page shown or on this button, margin px around it. */
+    private boolean under(int f, float x, float y, float margin) {
+        if (f >= 0) {
+            if (f / SLOTS_PER_PAGE != page) return false;
+            int i = f % SLOTS_PER_PAGE;
+            float left = TILE_X0 + i % WiiGrid.COLS * COL_PITCH, top = TILE_Y0 + i / WiiGrid.COLS * ROW_PITCH;
+            return x >= left - margin && x <= left + TILE_W + margin && y >= top - margin && y <= top + TILE_H + margin;
+        }
+        if (f == BTN_SD) {
+            float m = margin + SD_PAD;
+            return x >= SD_L - m && x <= SD_R + m && y >= SD_T - m && y <= SD_B + m;
+        }
+        float cx = f == BTN_SETTINGS ? WiiBase.BTN_CX : BTN_RIGHT_CX, r = WiiBase.BTN_RING + margin;
+        float ddx = x - cx, ddy = y - WiiBase.BTN_CY;
+        return (f == BTN_SETTINGS || f == BTN_INPUTS) && ddx * ddx + ddy * ddy <= r * r;
+    }
+
+    /** The slot of the page shown under (x, y), in reference px; -1 between and around the tiles. */
+    private int slotAt(float x, float y) {
+        for (int i = 0; i < SLOTS_PER_PAGE; i++) {
+            if (under(page * SLOTS_PER_PAGE + i, x, y, 0f)) return page * SLOTS_PER_PAGE + i;
+        }
+        return -1;
+    }
+
+    private int nearestSlot(float x, float y) {
+        int col = Math.round((x - TILE_X0 - TILE_W / 2f) / COL_PITCH);
+        int row = Math.round((y - TILE_Y0 - TILE_H / 2f) / ROW_PITCH);
+        col = Math.max(0, Math.min(WiiGrid.COLS - 1, col));
+        row = Math.max(0, Math.min(WiiGrid.ROWS - 1, row));
+        return page * SLOTS_PER_PAGE + row * WiiGrid.COLS + col;
+    }
+
+    /** The page arrow shown under (x, y), in reference px: 1 the right one, -1 the left one, 0 none. */
+    private int arrowAt(float x, float y) {
+        if (y < ARROW_T - ARROW_PAD || y > ARROW_B + ARROW_PAD) return 0;
+        float cx2 = 2f * WiiBase.CX;
+        if (page < pages - 1 && x >= ARROW_L - ARROW_PAD && x <= ARROW_TIP + ARROW_PAD) return 1;
+        if (page > 0 && x >= cx2 - ARROW_TIP - ARROW_PAD && x <= cx2 - ARROW_L + ARROW_PAD) return -1;
+        return 0;
+    }
+
     // ---- where the hand is, kept for when Android closes the menu while an app runs ------------------
 
     /** The channel under the hand, or null on an empty slot or a button. */
@@ -737,7 +861,7 @@ public class WiiMenuView extends View {
         return focus >= 0 && focus < channels.size() ? channels.get(focus).key : null;
     }
 
-    /** The slot or button under the hand; Integer.MIN_VALUE in the reference pose, which has none. */
+    /** The slot or button under the hand; Integer.MIN_VALUE in the reference pose or with the free hand on nothing. */
     int handSlot() {
         return focus;
     }
@@ -765,6 +889,8 @@ public class WiiMenuView extends View {
         focus = slot;
         page = button ? Math.max(0, Math.min(pg, pages - 1)) : slot / SLOTS_PER_PAGE;
         pagePos = page;
+        freeHand = false;
+        arrowUnder = 0;
         handPlaced = false;
         stillGen++;
         scheduleHoverSound();
@@ -1053,7 +1179,7 @@ public class WiiMenuView extends View {
     private boolean step(float dt) {
         float kPage = 1f - (float) Math.exp(-dt / 0.11f);
         float kLift = 1f - (float) Math.exp(-dt / 0.07f);
-        float kHand = 1f - (float) Math.exp(-dt / 0.06f);
+        float kHand = 1f - (float) Math.exp(-dt / (freeHand ? 0.03f : 0.06f));
         float kMenu = 1f - (float) Math.exp(-dt / 0.08f);
 
         pagePos = approach(pagePos, page, kPage, 0.0008f);
@@ -1066,7 +1192,12 @@ public class WiiMenuView extends View {
             if (lift[i] != t) moving = true;
         }
 
-        handTarget(focus, point);
+        if (freeHand) {
+            point[0] = freeX;
+            point[1] = freeY;
+        } else {
+            handTarget(focus, point);
+        }
         if (!handPlaced) {
             handX = point[0];
             handY = point[1];

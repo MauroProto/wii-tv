@@ -14,4 +14,15 @@
     <string name="mii_lookalike_title">Elegí un parecido</string>
     <string name="games_empty_body">Agregalos desde la computadora con tools/games/add.py.</string>
     <string name="games_missing">Instalá RetroArch para jugar.</string>
-    <string name="games_key_menu">Mantené el rojo: menú de RetroArch</string></resources>
+    <string name="games_key_menu">Mantené el rojo: menú de RetroArch</string>
+    <string name="wiimote_title">Usá tu celu como control de Wii</string>
+    <string name="wiimote_step_scan">Escaneá el código con la cámara del celu.</string>
+    <string name="wiimote_step_start">Tocá Empezar en la página que se abre.</string>
+    <string name="wiimote_step_point">Apuntá a la tele y mové el celu: la manito lo sigue. A abre, B vuelve.</string>
+    <string name="wiimote_waiting">Esperando un celu…</string>
+    <string name="wiimote_offline">No hay conexión con el servidor. Revisá internet.</string>
+    <plurals name="wiimote_phones">
+        <item quantity="one">%1$d celu conectado</item>
+        <item quantity="many">%1$d celus conectados</item>
+        <item quantity="other">%1$d celus conectados</item>
+    </plurals></resources>

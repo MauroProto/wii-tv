@@ -15,6 +15,8 @@ public class GamesActivity extends Activity implements GamesView.Host {
 
     private GamesView view;
     private WiiSounds sounds;
+    /** A phone as the remote: its buttons press the remote's keys here. */
+    private Wiimote wiimote;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
@@ -25,6 +27,7 @@ public class GamesActivity extends Activity implements GamesView.Host {
         view = new GamesView(this, this, sounds);
         setContentView(view);
         view.requestFocus();
+        wiimote = new Wiimote(this, null);
     }
 
     @Override
@@ -34,12 +37,14 @@ public class GamesActivity extends Activity implements GamesView.Host {
         view.setGames(GameList.load(this), RetroArch.installed(getPackageManager()) != null,
                 RetroArch.lastPlayed(this));
         view.resume();
+        wiimote.resume();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         view.pause();
+        wiimote.pause();
     }
 
     @Override
@@ -47,6 +52,7 @@ public class GamesActivity extends Activity implements GamesView.Host {
         super.onDestroy();
         handler.removeCallbacksAndMessages(null);
         sounds.release();
+        wiimote.release();
     }
 
     @Override

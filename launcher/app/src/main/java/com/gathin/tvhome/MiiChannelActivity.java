@@ -8,6 +8,8 @@ import android.view.KeyEvent;
 public class MiiChannelActivity extends Activity {
 
     private MiiChannelView view;
+    /** A phone as the remote: its buttons press the remote's keys here. */
+    private Wiimote wiimote;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -18,24 +20,28 @@ public class MiiChannelActivity extends Activity {
         });
         setContentView(view);
         view.requestFocus();
+        wiimote = new Wiimote(this, null);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         view.resume();
+        wiimote.resume();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         view.pause();
+        wiimote.pause();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         view.release();
+        wiimote.release();
     }
 
     @Override

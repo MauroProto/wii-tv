@@ -7,6 +7,8 @@
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
+    <!-- The Wiimote relay (WiimoteLink). -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- Needed since Android 10 to read the Wi-Fi network name for the network pill. Never requested at
@@ -92,6 +94,14 @@
         <!-- The Games channel, next to the Mii channel; same task as the home screen too. -->
         <activity
             android:name=".GamesActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode"
+            android:screenOrientation="landscape" />
+
+        <!-- The Wiimote channel, after the Games channel: the QR code that turns a phone into the remote. -->
+        <activity
+            android:name=".WiimoteActivity"
             android:exported="false"
             android:excludeFromRecents="true"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode"

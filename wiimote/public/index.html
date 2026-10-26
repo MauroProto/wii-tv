@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#dfe4e8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="referrer" content="no-referrer">
+<title>Wiimote · wiiOS</title>
+<style>
+  :root {
+    --blue: #3fc0ec;
+    --blue-dark: #2c86ba;
+    --ink: #4a5056;
+    --soft: #98a1aa;
+    --key: #cdd2d7;
+    --key-on: #aab1b8;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background: #dfe4e8 repeating-linear-gradient(0deg, rgba(255,255,255,.45) 0 2px, transparent 2px 7px);
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none;
+  }
+  button {
+    font: inherit; color: inherit; border: 0; padding: 0; cursor: pointer; touch-action: none;
+    -webkit-user-select: none; user-select: none;
+  }
+  .remote {
+    position: relative;
+    width: min(92vw, 340px);
+    height: calc(100vh - 20px);
+    height: calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    margin: calc(10px + env(safe-area-inset-top)) auto 0;
+    padding: 16px 22px 14px;
+    display: flex; flex-direction: column; align-items: center; gap: min(14px, 1.8vh);
+    border-radius: 60px 60px 48px 48px;
+    background: linear-gradient(90deg, #e6e9ec 0%, #fff 16%, #fff 84%, #e6e9ec 100%);
+    box-shadow: 0 18px 44px rgba(40, 60, 80, .22), inset 0 0 0 1px rgba(0, 0, 0, .06);
+  }
+  .status {
+    display: flex; align-items: center; gap: 7px; height: 26px; padding: 0 12px;
+    border-radius: 13px; background: #f1f3f5; font-size: 12.5px; color: var(--soft); white-space: nowrap;
+  }
+  .status i { width: 8px; height: 8px; border-radius: 50%; background: #c3c9ce; }
+  .status.ok i { background: #4cc96b; box-shadow: 0 0 6px #4cc96b; }
+  .status.wait i { background: #f2b33d; }
+  .status.off i { background: #e5534b; }
+
+  .dpad {
+    --d: min(140px, 19vh);
+    width: var(--d); height: var(--d); flex: none;
+    display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+    filter: drop-shadow(0 2px 1px rgba(0, 0, 0, .12));
+  }
+  .dpad button, .dpad .hub { background: var(--key); position: relative; }
+  .dpad .up { grid-area: 1 / 2; border-radius: 9px 9px 0 0; }
+  .dpad .left { grid-area: 2 / 1; border-radius: 9px 0 0 9px; }
+  .dpad .hub { grid-area: 2 / 2; }
+  .dpad .right { grid-area: 2 / 3; border-radius: 0 9px 9px 0; }
+  .dpad .down { grid-area: 3 / 2; border-radius: 0 0 9px 9px; }
+  .dpad button::after {
+    content: ""; position: absolute; left: 50%; top: 50%; width: 0; height: 0;
+    border: 7px solid transparent; transform: translate(-50%, -50%);
+  }
+  .dpad .up::after { border-bottom-color: #9aa2aa; margin-top: -4px; }
+  .dpad .down::after { border-top-color: #9aa2aa; margin-top: 4px; }
+  .dpad .left::after { border-right-color: #9aa2aa; margin-left: -4px; }
+  .dpad .right::after { border-left-color: #9aa2aa; margin-left: 4px; }
+  .dpad button.on { background: var(--key-on); }
+
+  .a {
+    --s: min(92px, 12.5vh);
+    width: var(--s); height: var(--s); flex: none; border-radius: 50%;
+    font-size: calc(var(--s) * .42); font-weight: 700; color: #a0a7ae;
+    background: radial-gradient(circle at 50% 35%, #fbfbfc, #dfe2e5 70%, #d2d6da);
+    box-shadow: 0 3px 0 #b9bfc5, 0 5px 10px rgba(0, 0, 0, .15), inset 0 0 0 1.5px #c9ced3;
+  }
+  .b {
+    width: 148px; height: min(48px, 6.5vh); flex: none; border-radius: 24px;
+    font-size: 17px; font-weight: 700; color: #a0a7ae;
+    background: linear-gradient(#f6f7f8, #dde1e4);
+    box-shadow: 0 2px 0 #bcc2c8, inset 0 0 0 1.5px #ccd1d6;
+  }
+  .b small { font-weight: 500; font-size: 12px; margin-left: 6px; color: #b3b9bf; }
+  .a.on, .b.on, .small.on, .num.on { transform: translateY(2px) scale(.96); filter: brightness(.92); box-shadow: none; }
+
+  .pad {
+    position: relative; flex: 1 1 auto; min-height: 64px; width: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    padding: 10px 16px; border-radius: 28px; text-align: center;
+    font-size: 13.5px; line-height: 1.35; color: var(--soft);
+    background: linear-gradient(#f3f5f7, #eceff2);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, .07);
+  }
+  .pad p { margin: 0; max-width: 220px; }
+  .pad.drag { background: linear-gradient(#e9f7fd, #e1f2fa); }
+  .type {
+    height: 38px; padding: 0 18px; border-radius: 19px; font-size: 14px; font-weight: 600; color: #fff;
+    background: linear-gradient(#58cdf2, var(--blue)); box-shadow: inset 0 0 0 1.5px var(--blue-dark);
+  }
+
+  .row { display: flex; align-items: center; justify-content: center; gap: 26px; flex: none; }
+  .small {
+    width: min(46px, 6.4vh); height: min(46px, 6.4vh); border-radius: 50%;
+    font-size: 24px; font-weight: 700; color: #a0a7ae; line-height: 1;
+    background: linear-gradient(#f8f9fa, #dfe2e5); box-shadow: 0 2px 0 #bec4ca, inset 0 0 0 1.5px #cfd4d8;
+    display: grid; place-items: center;
+  }
+  .small svg { width: 52%; height: 52%; fill: var(--blue); }
+  .num {
+    width: min(54px, 7.2vh); height: min(54px, 7.2vh); border-radius: 50%;
+    font-size: 21px; font-weight: 700; color: #a0a7ae;
+    background: linear-gradient(#f8f9fa, #dfe2e5); box-shadow: 0 2px 0 #bec4ca, inset 0 0 0 1.5px #cfd4d8;
+  }
+  .leds { display: flex; gap: 12px; flex: none; margin-top: 2px; }
+  .leds i { width: 15px; height: 7px; border-radius: 3px; background: #d4dadf; }
+  .leds i.lit { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
+  .leds.seek i { animation: seek 1.2s infinite; }
+  .leds.seek i:nth-child(2) { animation-delay: .15s; }
+  .leds.seek i:nth-child(3) { animation-delay: .3s; }
+  .leds.seek i:nth-child(4) { animation-delay: .45s; }
+  @keyframes seek { 0%, 60%, 100% { background: #d4dadf; box-shadow: none; } 20% { background: var(--blue); box-shadow: 0 0 8px var(--blue); } }
+  .mark { flex: none; font-size: 15px; font-weight: 800; letter-spacing: .5px; color: #c4c9ce; }
+
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    background: #fff; border-radius: 22px 22px 0 0; box-shadow: 0 -10px 30px rgba(40, 60, 80, .2);
+    touch-action: auto;
+  }
+  .sheet form { display: flex; gap: 10px; }
+  .sheet input {
+    flex: 1; min-width: 0; height: 48px; padding: 0 16px; border-radius: 24px; border: 1.5px solid #cfd5da;
+    font: inherit; font-size: 16px; color: var(--ink); outline: none; -webkit-user-select: text; user-select: text;
+  }
+  .sheet input:focus { border-color: var(--blue); }
+  .sheet .send {
+    height: 48px; padding: 0 20px; border-radius: 24px; font-weight: 700; color: #fff;
+    background: linear-gradient(#58cdf2, var(--blue)); box-shadow: inset 0 0 0 1.5px var(--blue-dark);
+  }
+  .sheet .close { display: block; margin: 12px auto 0; font-size: 14px; color: var(--soft); background: none; }
+
+  .start {
+    position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px;
+    background: rgba(223, 228, 232, .94); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  }
+  .card { width: min(100%, 340px); text-align: center; }
+  .card h1 { margin: 18px 0 8px; font-size: 34px; letter-spacing: .3px; color: #4a4f54; }
+  .card p { margin: 0 0 26px; font-size: 16px; line-height: 1.45; color: #6d757c; }
+  .card .go {
+    width: 100%; height: 58px; border-radius: 29px; font-size: 19px; font-weight: 700; color: #fff;
+    background: linear-gradient(#64d2f4, var(--blue) 55%, #2fb0e0);
+    box-shadow: 0 4px 0 var(--blue-dark), 0 10px 22px rgba(44, 134, 186, .35);
+  }
+  .card .go:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--blue-dark); }
+  .mini {
+    width: 64px; height: 150px; margin: 0 auto; border-radius: 26px; position: relative;
+    background: linear-gradient(90deg, #e3e7ea, #fff 25%, #fff 75%, #e3e7ea);
+    box-shadow: 0 10px 22px rgba(40, 60, 80, .25), inset 0 0 0 1px rgba(0, 0, 0, .06);
+    animation: tilt 2.6s ease-in-out infinite; transform-origin: 50% 85%;
+  }
+  .mini::before {
+    content: ""; position: absolute; left: 50%; top: 20px; width: 22px; height: 22px; margin-left: -11px;
+    background: linear-gradient(var(--key), var(--key)) center / 7px 22px no-repeat,
+                linear-gradient(var(--key), var(--key)) center / 22px 7px no-repeat;
+  }
+  .mini::after {
+    content: ""; position: absolute; left: 50%; top: 56px; width: 22px; height: 22px; margin-left: -11px;
+    border-radius: 50%; background: #e2e5e8; box-shadow: inset 0 0 0 1.5px #ccd1d6;
+  }
+  @keyframes tilt { 0%, 100% { transform: rotate(-9deg); } 50% { transform: rotate(9deg); } }
+  @media (prefers-reduced-motion: reduce) { .mini, .leds.seek i { animation: none; } }
+</style>
+</head>
+<body>
+<main class="remote">
+  <div class="status" id="status"><i></i><span id="statusText"></span></div>
+  <div class="dpad">
+    <button class="up" data-b="up" aria-label="Up"></button>
+    <button class="left" data-b="left" aria-label="Left"></button>
+    <span class="hub"></span>
+    <button class="right" data-b="right" aria-label="Right"></button>
+    <button class="down" data-b="down" aria-label="Down"></button>
+  </div>
+  <button class="a" data-b="a">A</button>
+  <button class="b" data-b="b">B<small id="bLabel"></small></button>
+  <div class="pad" id="pad">
+    <p id="hint"></p>
+    <button class="type" id="typeBtn" hidden></button>
+  </div>
+  <div class="row">
+    <button class="small" data-b="minus" aria-label="Minus">&minus;</button>
+    <button class="small" data-b="home" aria-label="Home">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 2.5 11.6h2.9V20h5.2v-5.4h2.8V20h5.2v-8.4h2.9z"/></svg>
+    </button>
+    <button class="small" data-b="plus" aria-label="Plus">+</button>
+  </div>
+  <div class="row">
+    <button class="num" data-b="one">1</button>
+    <button class="num" data-b="two">2</button>
+  </div>
+  <div class="leds seek" id="leds"><i></i><i></i><i></i><i></i></div>
+  <div class="mark">wiiOS</div>
+</main>
+
+<div class="sheet" id="sheet" hidden>
+  <form id="typeForm" autocomplete="off">
+    <input id="typeInput" type="text" enterkeyhint="send" maxlength="500" autocapitalize="sentences">
+    <button class="send" type="submit" id="sendBtn"></button>
+  </form>
+  <button class="close" id="closeBtn" type="button"></button>
+</div>
+
+<div class="start" id="start">
+  <div class="card">
+    <div class="mini" aria-hidden="true"></div>
+    <h1>Wiimote</h1>
+    <p id="startBody"></p>
+    <button class="go" id="startBtn" type="button"></button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const TEXT = {
+    en: {
+      body: "Use your phone as the TV's Wii Remote.", go: "Start",
+      noRoom: "Open the Wiimote channel on the TV and scan its code with your camera.",
+      connecting: "Connecting…", ok: "Connected to the TV", noTv: "Open wiiOS on the TV", off: "Offline, retrying…",
+      expired: "This code no longer works. Open the Wiimote channel on the TV and scan the new one.",
+      full: "Four remotes are already connected",
+      tilt: "Point at the TV and move your phone to move the hand", drag: "or drag your finger here",
+      noGyro: "Drag your finger here to move the hand", back: "Back",
+      type: "Type", typeHint: "Type or dictate here…", send: "Send", close: "Close",
+    },
+    es: {
+      body: "Usa tu celular como el control de la Wii de la tele.", go: "Empezar",
+      noRoom: "Abre el canal Wiimote en la tele y escanea su código con la cámara.",
+      connecting: "Conectando…", ok: "Conectado a la tele", noTv: "Abre wiiOS en la tele", off: "Sin conexión, reintentando…",
+      expired: "Este código ya no sirve. Abre el canal Wiimote en la tele y escanea el nuevo.",
+      full: "Ya hay cuatro controles conectados",
+      tilt: "Apunta a la tele y mueve el celular para mover la mano", drag: "o arrastra el dedo aquí",
+      noGyro: "Arrastra el dedo aquí para mover la mano", back: "Atrás",
+      type: "Escribir", typeHint: "Escribe o dicta aquí…", send: "Enviar", close: "Cerrar",
+    },
+    esAR: {
+      body: "Usá tu celular como el control de la Wii de la tele.",
+      noRoom: "Abrí el canal Wiimote en la tele y escaneá su código con la cámara.",
+      noTv: "Abrí wiiOS en la tele",
+      expired: "Este código ya no sirve. Abrí el canal Wiimote en la tele y escaneá el nuevo.",
+      tilt: "Apuntá a la tele y mové el celu para mover la mano", drag: "o arrastrá el dedo acá",
+      noGyro: "Arrastrá el dedo acá para mover la mano", typeHint: "Escribí o dictá acá…",
+    },
+  };
+  const lang = (navigator.language || "en").toLowerCase();
+  const t = lang.startsWith("es")
+    ? { ...TEXT.en, ...TEXT.es, ...(/^es-(ar|uy|py)/.test(lang) ? TEXT.esAR : {}) }
+    : TEXT.en;
+  document.documentElement.lang = lang.startsWith("es") ? "es" : "en";
+
+  const $ = (id) => document.getElementById(id);
+  // #room from a bookmark, #room.pair from the TV's QR code; the pairing code is traded for a token of this phone's own.
+  const [, room, pair] = location.hash.match(/^#([a-z2-7]{16})(?:\.([a-z2-7]{16}))?$/) || [];
+  const saved = "wiimote:" + room;
+  let token = room ? localStorage.getItem(saved) : null;
+  let paired = !!pair;
+  $("bLabel").textContent = t.back;
+  $("typeBtn").textContent = t.type;
+  $("typeInput").placeholder = t.typeHint;
+  $("sendBtn").textContent = t.send;
+  $("closeBtn").textContent = t.close;
+  $("startBtn").textContent = t.go;
+  function card(text) {
+    $("startBody").textContent = text;
+    $("startBtn").hidden = text !== t.body;
+    $("start").hidden = false;
+  }
+  card(room && (token || pair) ? t.body : t.noRoom);
+
+  // Degrees of turn to reference px of a 1920-wide screen; a quick swing moves the hand a little further.
+  const GAIN = 44;
+  const DEAD = 0.8;
+  let ws = null, open = false, tv = false, kb = false, player = 0, tries = 0, retry = 0, full = false, tvLost = 0;
+  let running = false, gyro = false, up = [0, 0, 1], lastMotion = 0, dx = 0, dy = 0, drag = null;
+
+  function status() {
+    const el = $("status");
+    let text, cls;
+    // Going from one wiiOS screen to another the TV is away for a moment: no need to say so.
+    const away = !tv && !(tvLost && Date.now() - tvLost < 2500);
+    if (!room) { text = t.noRoom; cls = "off"; }
+    else if (full) { text = t.full; cls = "wait"; }
+    else if (!open) { text = tries > 1 ? t.off : t.connecting; cls = tries > 1 ? "off" : ""; }
+    else if (away) { text = t.noTv; cls = "wait"; }
+    else { text = t.ok; cls = "ok"; }
+    el.className = "status " + cls;
+    $("statusText").textContent = text;
+    const leds = $("leds");
+    leds.classList.toggle("seek", !(open && tv && player));
+    [...leds.children].forEach((led, i) => led.classList.toggle("lit", open && tv && player === i + 1));
+    $("typeBtn").hidden = !(open && tv && kb);
+    if ($("typeBtn").hidden) $("sheet").hidden = true;
+  }
+
+  function hint() {
+    $("hint").textContent = !running || gyro ? t.tilt + " " + t.drag : t.noGyro;
+  }
+
+  function send(message) {
+    if (open && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
+  }
+
+  function buzz(ms) {
+    if (navigator.vibrate) navigator.vibrate(ms);
+  }
+
+  function connect() {
+    if (!room || !(token || paired)) return;
+    clearTimeout(retry);
+    tries++;
+    const ask = token ? "?token=" + token : "?pair=" + pair;
+    const sock = ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/" + room + ask);
+    let refused = false;
+    sock.onopen = () => { open = true; tries = 0; status(); };
+    sock.onmessage = (e) => {
+      if (e.data === "pong") return;
+      let m;
+      try { m = JSON.parse(e.data); } catch { return; }
+      if (m.error) {
+        refused = true;
+        full = m.error === "full";
+        if (m.error === "pair") {
+          // A token the TV no longer knows, or a code it no longer shows: only a new scan lets this phone in.
+          if (token) { localStorage.removeItem(saved); token = null; }
+          else paired = false;
+        }
+        return;
+      }
+      full = false;
+      if (m.token && m.token !== token) {
+        token = m.token;
+        localStorage.setItem(saved, token);
+        history.replaceState(null, "", "#" + room);
+      }
+      if (typeof m.tv === "boolean") {
+        if (tv && !m.tv) { tvLost = Date.now(); setTimeout(status, 2600); }
+        tv = m.tv;
+      }
+      if (typeof m.kb === "boolean") kb = m.kb;
+      if (m.player) player = m.player;
+      if (m.r) buzz(14);
+      status();
+    };
+    sock.onclose = () => {
+      if (sock !== ws) return;
+      open = false; tv = false; kb = false;
+      status();
+      if (refused && !token && !paired) { card(t.expired); return; }
+      retry = setTimeout(connect, full ? 15000 : Math.min(15000, 600 * 2 ** Math.min(tries, 5)));
+    };
+  }
+  // Answered by the relay without waking it up; keeps phone networks from dropping a quiet connection.
+  setInterval(() => { if (open && ws.readyState === WebSocket.OPEN) ws.send("ping"); }, 20000);
+
+  // The hand moves with the phone's turn about the world's vertical axis (left and right) and about the screen's
+  // horizontal axis (up and down), so it works the same held flat like a remote or upright like a camera.
+  addEventListener("deviceorientation", (e) => {
+    if (e.beta == null || e.gamma == null) return;
+    const b = e.beta * Math.PI / 180, g = e.gamma * Math.PI / 180;
+    up = [-Math.cos(b) * Math.sin(g), Math.sin(b), Math.cos(b) * Math.cos(g)];
+  });
+  addEventListener("devicemotion", (e) => {
+    const r = e.rotationRate;
+    if (!r || r.alpha == null || r.beta == null || r.gamma == null) return;
+    const now = performance.now();
+    const dt = lastMotion ? Math.min(0.1, (now - lastMotion) / 1000) : 0;
+    lastMotion = now;
+    if (!running || !dt) return;
+    if (!gyro) { gyro = true; hint(); }
+    const w = [r.beta, r.gamma, r.alpha];
+    const yaw = w[0] * up[0] + w[1] * up[1] + w[2] * up[2];
+    const across = [1 - up[0] * up[0], -up[0] * up[1], -up[0] * up[2]];
+    const n = Math.hypot(across[0], across[1], across[2]);
+    // On its side the screen's horizontal axis points up: there is no telling which way is up for the hand.
+    if (n < 0.3) return;
+    const pitch = (w[0] * across[0] + w[1] * across[1] + w[2] * across[2]) / n;
+    dx -= speed(yaw) * dt;
+    dy -= speed(pitch) * dt;
+  });
+  function speed(v) {
+    const a = Math.abs(v);
+    if (a < DEAD) return 0;
+    return Math.sign(v) * (a - DEAD) * GAIN * (0.8 + 0.45 * Math.min(1, a / 90));
+  }
+
+  const pad = $("pad");
+  pad.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button")) return;
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    pad.setPointerCapture(e.pointerId);
+    pad.classList.add("drag");
+  });
+  pad.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    dx += (e.clientX - drag.x) * 3.2;
+    dy += (e.clientY - drag.y) * 3.2;
+    drag.x = e.clientX;
+    drag.y = e.clientY;
+  });
+  const endDrag = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    drag = null;
+    pad.classList.remove("drag");
+  };
+  pad.addEventListener("pointerup", endDrag);
+  pad.addEventListener("pointercancel", endDrag);
+
+  setInterval(() => {
+    if (Math.abs(dx) < 0.05 && Math.abs(dy) < 0.05) return;
+    if (!open || !tv) { dx = dy = 0; return; }
+    // A slow network gets fewer, bigger steps instead of a queue that would make the hand lag behind.
+    if (ws.bufferedAmount > 2048) return;
+    send({ m: [Math.round(dx * 10) / 10, Math.round(dy * 10) / 10] });
+    dx = dy = 0;
+  }, 20);
+
+  for (const el of document.querySelectorAll("[data-b]")) {
+    const name = el.dataset.b;
+    let held = null;
+    el.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      if (held !== null) return;
+      held = e.pointerId;
+      try { el.setPointerCapture(e.pointerId); } catch {}
+      el.classList.add("on");
+      buzz(8);
+      send({ b: name, d: 1 });
+    });
+    const release = (e) => {
+      if (held === null || e.pointerId !== held) return;
+      held = null;
+      el.classList.remove("on");
+      send({ b: name, d: 0 });
+    };
+    el.addEventListener("pointerup", release);
+    el.addEventListener("pointercancel", release);
+    el.addEventListener("lostpointercapture", release);
+    el.addEventListener("contextmenu", (e) => e.preventDefault());
+  }
+
+  $("typeBtn").addEventListener("click", () => {
+    $("sheet").hidden = false;
+    $("typeInput").focus();
+  });
+  $("closeBtn").addEventListener("click", () => {
+    $("typeInput").blur();
+    $("sheet").hidden = true;
+  });
+  $("typeForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = $("typeInput").value.trim();
+    if (text) send({ t: text, e: 1 });
+    $("typeInput").value = "";
+    $("typeInput").blur();
+    $("sheet").hidden = true;
+  });
+
+  let lock = null;
+  async function wake() {
+    try { if (navigator.wakeLock && !lock) lock = await navigator.wakeLock.request("screen"); } catch {}
+    if (lock) lock.addEventListener("release", () => { lock = null; }, { once: true });
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && running) wake();
+    lastMotion = 0;
+  });
+
+  $("startBtn").addEventListener("click", async () => {
+    const el = document.documentElement;
+    try { if (el.requestFullscreen && !window.DeviceMotionEvent?.requestPermission) await el.requestFullscreen({ navigationUI: "hide" }); } catch {}
+    try { if (window.DeviceMotionEvent?.requestPermission) await DeviceMotionEvent.requestPermission(); } catch {}
+    try { if (window.DeviceOrientationEvent?.requestPermission) await DeviceOrientationEvent.requestPermission(); } catch {}
+    try { await screen.orientation.lock("portrait"); } catch {}
+    running = true;
+    $("start").hidden = true;
+    hint();
+    wake();
+  });
+
+  hint();
+  status();
+  connect();
+})();
+</script>
+</body>
+</html>

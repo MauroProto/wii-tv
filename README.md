@@ -27,6 +27,7 @@ El repositorio no incluye archivos extraídos de Nintendo. La interfaz se dibuja
 - **Manito** que sigue al canal o botón elegido. Al volver de una app está donde la dejaste, aunque Android haya cerrado el menú para liberar memoria.
 - **Canal Mii**: el primer canal. La plaza con tus Miis paseando sobre el piso de cuadrados, los botones de los costados (editar, crear, borrar, ayuda, desfile, mensajes), el silbato que los ordena por nombre, favoritos, color o género, y el editor para crearlos y cambiarlos. Los Miis se guardan en la TV. Sin nada más, todo se dibuja por código; con el paquete del canal usa las caras, los pelos, los íconos y los sonidos originales. El repositorio no trae esos archivos: [`tools/miipack`](tools/miipack/README.md) los toma de sus páginas públicas y arma el paquete en tu computadora.
 - **Canal Juegos**: al lado del Canal Mii. Su cartel es una pradera pixelada con un personajito azul que salta piedras y junta gemas. Adentro, tus juegos son cartuchos en un estante: elegís uno, apretás **Jugar** y arranca en [RetroArch](https://www.retroarch.com) (Game Boy, Game Boy Color, Game Boy Advance, NES, Super Nintendo, Neo Geo, Mega Drive, Master System y Game Gear). El botón **RetroArch** abre sus ajustes. Los juegos no vienen con el repositorio: ver [Juegos](#juegos).
+- **Canal Wiimote**: al lado del Canal Juegos. Convierte tu celu en el control de Wii, sin instalar nada: escaneás el código QR con la cámara, tocás **Empezar** en la página que se abre y la manito sigue al celu cuando lo movés (o cuando arrastrás el dedo en su panel). A abre, B vuelve, la cruz hace de flechas, + y − pasan de página y HOME vuelve al menú. Hasta 4 celus a la vez, cada uno con su luz de jugador. El código QR sirve solo mientras el canal está abierto; después el celu se acuerda de la TV. Se encuentran a través de un servidor chiquito en Cloudflare ([`wiimote/`](wiimote)), así que los dos necesitan internet.
 - **Sonidos** al moverte, al abrir algo, al cambiar de página, al abrir las entradas y al continuar desde el aviso. Usan el volumen de la TV.
 - **Audio incluido**: 7 efectos y 3 músicas, para el menú, la Plaza Mii y el editor. Primero suena el arranque y la música del menú entra un segundo después. No hay que instalar nada aparte.
 - **Pantalla de aviso** al prender la TV. La cierran OK o las flechas, o se va sola a los 12 segundos. No vuelve a aparecer cuando salís de una app.
@@ -220,6 +221,7 @@ Cambiá lo que quieras y volvé a correr `launcher/build-and-install.sh` para ap
 | Colores, tamaños y posiciones | Constantes al principio de `WiiMenuView.java`. El fondo y los paneles están en `WiiBase.java` y `WiiPalette.java`. |
 | App del botón SD | `MEDIA_PLAYER` en `WiiMenuActivity.java`. |
 | Canal Juegos sí o no | `games_channel` en `config.xml`. Con el canal, RetroArch no aparece como canal aparte. |
+| Canal Wiimote sí o no, y su servidor | `wiimote_channel` y `wiimote_url` en `config.xml`. El servidor se sube con `cd wiimote && npx wrangler deploy`, con tu dominio en `wiimote/wrangler.jsonc`. Con `wiimote_url` vacío, el celu no se usa en ningún lado. |
 
 Para ver los nombres de paquete de tus apps:
 
@@ -268,6 +270,7 @@ TV_HOST=192.168.1.50 tools/venv/bin/python tools/tv.py 'cmd package set-home-act
 
 - `launcher/` es una app Android en Java. `WiiMenuActivity` es la pantalla de inicio y `WiiMenuView` dibuja todo: canales, reloj, botones, manito, aviso y la lista de entradas. `WiiBase` y `WiiPalette` calculan el fondo rayado y los paneles píxel por píxel, en un hilo aparte. `WiiSounds` reproduce los efectos, `WiiMusic` las pistas incluidas y `MenuMusic` los reemplazos opcionales del menú.
 - `GamesActivity` y `GamesView` son el canal Juegos; `PixelScene` dibuja la pradera del cartel y `PixelArt` los cartuchos y las letras. `GameList` lee `games.txt` y `RetroArch` arma el pedido para abrir cada juego.
+- `Wiimote` conecta la pantalla que está al frente con el servidor (`WiimoteLink`, un WebSocket sin librerías) y convierte los botones del celu en teclas del control; `WiimoteActivity` muestra el código QR. `wiimote/` es el servidor (un Worker de Cloudflare con un Durable Object por TV) y la página del celu.
 - La app también trae el launcher de cleanyourtv (`MainActivity`). Ya no es la pantalla de inicio, pero sigue en el código.
 - `tools/` tiene un cliente ADB por red en Python (`tv.py`, no hace falta instalar `adb`), los scripts para desactivar y restaurar apps, el respaldo, el generador de sonidos, `games/add.py` para los juegos y `music/add.py` para la música del menú.
 - `tests/` prueba los scripts contra una TV simulada: `python3 -m unittest discover -s tests`.
