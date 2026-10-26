@@ -118,4 +118,6 @@
     <string name="games_coin">Moneda</string>
     <string name="games_key_a">OK: %1$s</string>
     <string name="games_key_b">Atrás: %1$s</string>
-    <string name="games_key_menu">Mantén el rojo: menú de RetroArch</string></resources>
+    <string name="games_key_menu">Mantén el rojo: menú de RetroArch</string>
+    <string name="grok_hint">Las flechas mueven la mano · OK toca · CH+ y CH− desplazan · Atrás vuelve</string>
+    <string name="grok_offline">Grok no se abrió. Revisa la conexión y pulsa OK para reintentar.</string></resources>

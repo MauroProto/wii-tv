@@ -7,6 +7,8 @@
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
+    <!-- The Grok channel's page (GrokActivity). -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- Needed since Android 10 to read the Wi-Fi network name for the network pill. Never requested at
@@ -96,6 +98,19 @@
             android:excludeFromRecents="true"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode"
             android:screenOrientation="landscape" />
+
+        <!-- The Grok channel, after the Games channel: grok.com full screen. Its own process, so the page's memory
+             never weighs on the menu; the config changes keep the page from reloading when the keyboard comes and
+             goes. -->
+        <activity
+            android:name=".GrokActivity"
+            android:exported="false"
+            android:process=":grok"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode"
+            android:screenOrientation="landscape"
+            android:windowSoftInputMode="adjustPan"
+            android:theme="@style/Theme.TvHome.Grok" />
 
         <activity
             android:name=".LauncherSettingsActivity"

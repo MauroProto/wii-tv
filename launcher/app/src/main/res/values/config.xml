@@ -191,4 +191,6 @@
     <!-- The Games channel after the Mii channel: games from games.txt (tools/games/add.py) started in RetroArch,
          whose own tile it then hides. -->
     <bool name="games_channel">true</bool>
+    <!-- The Grok channel after the Games channel: grok.com full screen, steered with the hand. -->
+    <bool name="grok_channel">true</bool>
 </resources>

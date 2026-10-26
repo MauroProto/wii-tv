@@ -27,6 +27,7 @@ El repositorio no incluye archivos extraídos de Nintendo. La interfaz se dibuja
 - **Manito** que sigue al canal o botón elegido. Al volver de una app está donde la dejaste, aunque Android haya cerrado el menú para liberar memoria.
 - **Canal Mii**: el primer canal. La plaza con tus Miis paseando sobre el piso de cuadrados, los botones de los costados (editar, crear, borrar, ayuda, desfile, mensajes), el silbato que los ordena por nombre, favoritos, color o género, y el editor para crearlos y cambiarlos. Los Miis se guardan en la TV. Sin nada más, todo se dibuja por código; con el paquete del canal usa las caras, los pelos, los íconos y los sonidos originales. El repositorio no trae esos archivos: [`tools/miipack`](tools/miipack/README.md) los toma de sus páginas públicas y arma el paquete en tu computadora.
 - **Canal Juegos**: al lado del Canal Mii. Su cartel es una pradera pixelada con un personajito azul que salta piedras y junta gemas. Adentro, tus juegos son cartuchos en un estante: elegís uno, apretás **Jugar** y arranca en [RetroArch](https://www.retroarch.com) (Game Boy, Game Boy Color, Game Boy Advance, NES, Super Nintendo, Neo Geo, Mega Drive, Master System y Game Gear). El botón **RetroArch** abre sus ajustes. Los juegos no vienen con el repositorio: ver [Juegos](#juegos).
+- **Canal Grok**: al lado del Canal Juegos. Abre [grok.com](https://grok.com) en pantalla completa, como una app. Su cartel es un globo de diálogo con tres puntitos que escriben, bajo un cielo con estrellas. La manito es el puntero: las flechas la mueven (si las mantenés, va cada vez más rápido), OK toca lo que está debajo (mantenido, arrastra), CH+ y CH− desplazan la página, igual que empujar la manito contra el borde de arriba o de abajo, y Atrás vuelve una página, cierra la ventana para iniciar sesión o sale del canal. La sesión (por ejemplo, con tu cuenta de X) queda guardada en la TV. Corre en un proceso aparte, así la página no le quita memoria al menú.
 - **Sonidos** al moverte, al abrir algo, al cambiar de página, al abrir las entradas y al continuar desde el aviso. Usan el volumen de la TV.
 - **Audio incluido**: 7 efectos y 3 músicas, para el menú, la Plaza Mii y el editor. Primero suena el arranque y la música del menú entra un segundo después. No hay que instalar nada aparte.
 - **Pantalla de aviso** al prender la TV. La cierran OK o las flechas, o se va sola a los 12 segundos. No vuelve a aparecer cuando salís de una app.
@@ -220,6 +221,7 @@ Cambiá lo que quieras y volvé a correr `launcher/build-and-install.sh` para ap
 | Colores, tamaños y posiciones | Constantes al principio de `WiiMenuView.java`. El fondo y los paneles están en `WiiBase.java` y `WiiPalette.java`. |
 | App del botón SD | `MEDIA_PLAYER` en `WiiMenuActivity.java`. |
 | Canal Juegos sí o no | `games_channel` en `config.xml`. Con el canal, RetroArch no aparece como canal aparte. |
+| Canal Grok sí o no | `grok_channel` en `config.xml`. |
 
 Para ver los nombres de paquete de tus apps:
 

@@ -14,4 +14,5 @@
     <string name="mii_lookalike_title">Elegí un parecido</string>
     <string name="games_empty_body">Agregalos desde la computadora con tools/games/add.py.</string>
     <string name="games_missing">Instalá RetroArch para jugar.</string>
-    <string name="games_key_menu">Mantené el rojo: menú de RetroArch</string></resources>
+    <string name="games_key_menu">Mantené el rojo: menú de RetroArch</string>
+    <string name="grok_offline">Grok no se abrió. Revisá la conexión y presioná OK para reintentar.</string></resources>

@@ -6,6 +6,12 @@
         <item name="android:windowAnimationStyle">@null</item>
     </style>
 
+    <!-- The Grok channel opens on its night sky, not black, while its process and page start. -->
+    <style name="Theme.TvHome.Grok">
+        <item name="android:windowBackground">@color/grok_night</item>
+    </style>
+    <color name="grok_night">#FF070B18</color>
+
     <!-- Frosted pill, tvOS style. -->
     <style name="TopButtonBase">
         <item name="android:layout_width">wrap_content</item>

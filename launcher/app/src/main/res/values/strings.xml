@@ -176,4 +176,8 @@
     <!-- The remote's keys in a game, after the colour buttons (Start, Select and the console's own). -->
     <string name="games_key_a">OK: %1$s</string>
     <string name="games_key_b">Back: %1$s</string>
-    <string name="games_key_menu">Hold red: RetroArch menu</string></resources>
+    <string name="games_key_menu">Hold red: RetroArch menu</string>
+    <!-- Grok channel (GrokActivity): grok.com, steered with the remote. -->
+    <string name="grok_channel_name" translatable="false">Grok</string>
+    <string name="grok_hint">Arrows move the hand · OK touches · CH+ and CH− scroll · Back goes back</string>
+    <string name="grok_offline">Grok didn\'t open. Check the connection, then press OK to try again.</string></resources>

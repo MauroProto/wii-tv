@@ -62,6 +62,7 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     private int miiVersion = -1;
     private Typeface miiFace;
     private GamesBanner gamesBanner;
+    private GrokBanner grokBanner;
     /** The channel keys in the usual order, before the owner's: putting them back that way forgets the saved one. */
     private List<String> usualOrder = Collections.emptyList();
     /** The hand goes back where it was on the first resume, unless the menu starts as at power-on. */
@@ -309,8 +310,9 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         });
         int at = 0;
         while (at < channels.size() && dock.contains(channels.get(at).key)) at++;
-        channels.add(at, miiChannel());
-        if (games) channels.add(at + 1, gamesChannel());
+        channels.add(at++, miiChannel());
+        if (games) channels.add(at++, gamesChannel());
+        if (getResources().getBoolean(R.bool.grok_channel)) channels.add(at, grokChannel());
         List<String> usual = new ArrayList<>(channels.size());
         for (WiiMenuView.Channel ch : channels) usual.add(ch.key);
         usualOrder = usual;
@@ -343,6 +345,14 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         if (gamesBanner == null) gamesBanner = new GamesBanner(name, miiFace);
         return new WiiMenuView.Channel(getPackageName() + ".games", name, gamesBanner, null,
                 new Intent(this, GamesActivity.class));
+    }
+
+    /** The built-in Grok channel, after the Games channel; its tile is a speech bubble under the stars. */
+    private WiiMenuView.Channel grokChannel() {
+        String name = getString(R.string.grok_channel_name);
+        if (grokBanner == null) grokBanner = new GrokBanner(name, miiFace);
+        return new WiiMenuView.Channel(getPackageName() + ".grok", name, grokBanner, null,
+                new Intent(this, GrokActivity.class));
     }
 
     /** The built-in Mii channel, right after the dock apps; its tile shows the plaza's residents. */
