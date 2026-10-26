@@ -193,4 +193,9 @@
     <bool name="games_channel">true</bool>
     <!-- The Grok channel after the Games channel: grok.com full screen, steered with the hand. -->
     <bool name="grok_channel">true</bool>
+    <!-- The Wiimote channel after the Grok channel: a QR code that turns a phone into the remote, which points the
+         hand, presses its buttons and types into Grok. Through the relay in wiimote/ (deployed with wrangler), at
+         wiimote_url; an empty wiimote_url turns the phone remote off everywhere. -->
+    <bool name="wiimote_channel">true</bool>
+    <string name="wiimote_url" translatable="false">https://wiimote.mauroproto.com</string>
 </resources>

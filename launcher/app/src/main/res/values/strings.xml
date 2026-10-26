@@ -180,4 +180,18 @@
     <!-- Grok channel (GrokActivity): grok.com, steered with the remote. -->
     <string name="grok_channel_name" translatable="false">Grok</string>
     <string name="grok_hint">Arrows move the hand · OK touches · CH+ and CH− scroll · Back goes back</string>
-    <string name="grok_offline">Grok didn\'t open. Check the connection, then press OK to try again.</string></resources>
+    <string name="grok_offline">Grok didn\'t open. Check the connection, then press OK to try again.</string>
+    <!-- Wiimote channel (WiimoteActivity): a phone as the Wii Remote. -->
+    <string name="wiimote_channel_name" translatable="false">Wiimote</string>
+    <string name="wiimote_title">Use your phone as the Wii Remote</string>
+    <string name="wiimote_step_scan">Scan the code with your phone\'s camera.</string>
+    <string name="wiimote_step_start">Tap Start on the page that opens.</string>
+    <string name="wiimote_step_point">Point at the TV and move the phone: the hand follows. A opens, B goes back.</string>
+    <string name="wiimote_waiting">Waiting for a phone…</string>
+    <string name="wiimote_joined">Connected! Back to the menu…</string>
+    <string name="wiimote_offline">Can\'t reach the server. Check the internet connection.</string>
+    <string name="wiimote_hint">The code works only while this screen is open · Back returns to the menu</string>
+    <plurals name="wiimote_phones">
+        <item quantity="one">%1$d phone connected</item>
+        <item quantity="other">%1$d phones connected</item>
+    </plurals></resources>

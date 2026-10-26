@@ -43,6 +43,8 @@ android {
 dependencies {
     implementation 'androidx.recyclerview:recyclerview:1.3.2'
     implementation 'androidx.dynamicanimation:dynamicanimation:1.0.0'
+    // The Wiimote channel's QR code: one small plain-Java class set, no Android dependencies of its own.
+    implementation 'io.nayuki:qrcodegen:1.8.0'
     // Test only (never in the APK): plain JVM tests for the module card validators, src/test.
     testImplementation 'junit:junit:4.13.2'
 }

@@ -27,6 +27,7 @@ The repository includes no files extracted from Nintendo. The interface is drawn
 - **Pointing hand** that follows the selected channel or button. Back from an app, it is where you left it, even if Android closed the menu to free memory.
 - **Mii Channel**: the first channel. The plaza with your Miis walking around on the squared floor, the side buttons (edit, new, delete, help, parade, mail), the whistle that lines them up by name, favourite, colour or gender, and the editor to make and change them. Miis are saved on the TV. On its own everything is drawn in code; with the channel pack it uses the original faces, hair, icons and sounds. The repository does not include those files: [`tools/miipack`](tools/miipack/README.md) (in Spanish) fetches them from their public pages and builds the pack on your computer.
 - **Games channel**: next to the Mii Channel. Its tile is a pixel-art meadow with a little blue runner hopping over rocks for gems. Inside, your games are cartridges on a shelf: pick one, press **Play** and it starts in [RetroArch](https://www.retroarch.com) (Game Boy, Game Boy Color, Game Boy Advance, NES, Super Nintendo, Neo Geo, Mega Drive, Master System and Game Gear). The **RetroArch** button opens its settings. The repository ships no games; see [Games](#games).
+- **Wiimote channel**: turns your phone into the Wii Remote, nothing to install: scan the QR code with the camera, tap **Start** on the page that opens, and the hand follows the phone as you move it (or as you drag on its pad). A opens, B goes back, the D-pad works as the arrows, + and − turn the page and HOME goes back to the menu. In the Grok channel, **Type** sends text to the page. Up to 4 phones at once, each with its player light. The QR code works only while the channel is open; after that the phone remembers the TV. They meet through a small Cloudflare server ([`wiimote/`](wiimote)), so both need internet.
 - **Sounds** for moving, opening, turning the page, opening the inputs list and leaving the notice screen. They follow the TV volume.
 - **Bundled audio**: 7 effects and 3 music tracks for Home, Mii Plaza and the editor. The jingle starts first; menu music enters one second later. No separate audio installation is needed.
 - **Notice screen** at power-on. OK or the arrows close it, or it leaves by itself after 12 seconds. It does not come back when you leave an app.
@@ -134,6 +135,7 @@ Change what you like and run `launcher/build-and-install.sh` again.
 | Colours, sizes, positions | Constants at the top of `WiiMenuView.java`; backdrop and panels in `WiiBase.java` and `WiiPalette.java` |
 | App behind the SD button | `MEDIA_PLAYER` in `WiiMenuActivity.java` |
 | Games channel on or off | `games_channel` in `config.xml`; with the channel, RetroArch gets no channel of its own |
+| Wiimote channel on or off, and its server | `wiimote_channel` and `wiimote_url` in `config.xml`. Deploy the server with `cd wiimote && npx wrangler deploy`, your domain in `wiimote/wrangler.jsonc`. An empty `wiimote_url` turns the phone remote off everywhere. |
 
 ## Undo
 

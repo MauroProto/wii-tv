@@ -90,6 +90,11 @@ final class GrokOverlay extends View implements Choreographer.FrameCallback {
         kick();
     }
 
+    /** A phone moved the hand dx, dy px of a 1920-wide screen (Wiimote). */
+    void point(float dx, float dy) {
+        move(dx * s, dy * s);
+    }
+
     void release(int dir) {
         if (pressed[dir] == 0L) return;
         pressed[dir] = 0L;

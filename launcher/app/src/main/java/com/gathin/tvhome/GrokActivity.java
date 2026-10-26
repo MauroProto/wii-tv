@@ -25,6 +25,8 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,10 +34,10 @@ import java.util.List;
  * The Grok channel: grok.com full screen, as if it were an app. The remote steers the Wii hand over the page: the
  * arrows move it, OK touches what is under it (held, it drags), CH+ and CH- scroll, and so does pushing the hand
  * against the top or bottom; Back goes back a page, closes a window the page opened (signing in with X), and then
- * leaves. Its own process (":grok" in the manifest): the page's memory never weighs on the menu, and Android can
- * take all of it back once the channel is closed.
+ * leaves. A phone (Wiimote) points the hand and types into the page. Its own process (":grok" in the manifest): the
+ * page's memory never weighs on the menu, and Android can take all of it back once the channel is closed.
  */
-public class GrokActivity extends Activity implements GrokOverlay.Host {
+public class GrokActivity extends Activity implements GrokOverlay.Host, Wiimote.Pointer {
 
     /** How long the page gets before the picture lifts anyway: some pages never report that they finished. */
     private static final long LOAD_TIMEOUT_MS = 15_000L;
@@ -43,9 +45,22 @@ public class GrokActivity extends Activity implements GrokOverlay.Host {
     private static final float PAGE = 0.8f;
     /** Scroll per px the hand is pushed past the top or the bottom. */
     private static final float EDGE_SCROLL = 1.6f;
+    /**
+     * Puts text from the phone into the page's focused field, or else into the first one shown, as typing would:
+     * insertText goes through the page's own input events. False when the page has no field to take it.
+     */
+    private static final String TYPE_JS = "(function(t){"
+            + "function field(n){return !!n&&(n.tagName==='TEXTAREA'||n.isContentEditable"
+            + "||n.tagName==='INPUT'&&/^(text|search|email|url|tel|password)$/.test(n.type));}"
+            + "var e=document.activeElement;"
+            + "if(!field(e)){e=null;var c=document.querySelectorAll('textarea,input,[contenteditable]');"
+            + "for(var i=0;i<c.length&&!e;i++)if(field(c[i])&&c[i].getClientRects().length)e=c[i];"
+            + "if(!e)return false;e.focus();}"
+            + "if(t)document.execCommand('insertText',false,t);return true;})";
 
     private FrameLayout root;
     private GrokOverlay overlay;
+    private Wiimote wiimote;
     /** The channel's page first, then the windows it opened, newest last; the hand works on the last one. */
     private final List<WebView> pages = new ArrayList<>();
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -127,6 +142,9 @@ public class GrokActivity extends Activity implements GrokOverlay.Host {
         handler.postDelayed(() -> {
             if (!failed) overlay.ready();
         }, LOAD_TIMEOUT_MS);
+        wiimote = new Wiimote(this, this);
+        // The page always has its prompt to type into.
+        wiimote.typing(true);
     }
 
     private static FrameLayout.LayoutParams match() {
@@ -197,6 +215,7 @@ public class GrokActivity extends Activity implements GrokOverlay.Host {
         for (WebView w : pages) w.onResume();
         if (main() != null) main().resumeTimers();
         overlay.resume();
+        wiimote.resume();
     }
 
     @Override
@@ -204,6 +223,7 @@ public class GrokActivity extends Activity implements GrokOverlay.Host {
         super.onPause();
         resumed = false;
         overlay.pause();
+        wiimote.pause();
         touchDown = 0L;
         if (!rebuildPending) {
             for (WebView w : pages) w.onPause();
@@ -216,6 +236,7 @@ public class GrokActivity extends Activity implements GrokOverlay.Host {
     @Override
     protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
+        wiimote.release();
         destroyPages();
         super.onDestroy();
     }
@@ -339,6 +360,25 @@ public class GrokActivity extends Activity implements GrokOverlay.Host {
             send(w, SystemClock.uptimeMillis(), MotionEvent.ACTION_HOVER_MOVE, InputDevice.SOURCE_MOUSE,
                     MotionEvent.TOOL_TYPE_MOUSE, x, y, 0f);
         }
+    }
+
+    @Override
+    public void onWiimoteMove(float dx, float dy) {
+        overlay.point(dx, dy);
+    }
+
+    /** Text from the phone goes into the page's field; enter then presses Enter there, which sends a prompt. */
+    @Override
+    public void onWiimoteText(String text, boolean enter) {
+        WebView w = top();
+        if (w == null || failed) return;
+        w.requestFocus();
+        w.evaluateJavascript(TYPE_JS + "(" + JSONObject.quote(text) + ")", typed -> {
+            if (!enter || !"true".equals(typed) || w != top()) return;
+            long now = SystemClock.uptimeMillis();
+            w.dispatchKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER, 0));
+            w.dispatchKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER, 0));
+        });
     }
 
     @Override

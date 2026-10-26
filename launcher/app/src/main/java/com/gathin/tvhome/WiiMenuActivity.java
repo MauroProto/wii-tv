@@ -63,6 +63,9 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     private Typeface miiFace;
     private GamesBanner gamesBanner;
     private GrokBanner grokBanner;
+    private WiimoteBanner wiimoteBanner;
+    /** A phone as the remote: its buttons press the remote's keys here, and it points the hand. */
+    private Wiimote wiimote;
     /** The channel keys in the usual order, before the owner's: putting them back that way forgets the saved one. */
     private List<String> usualOrder = Collections.emptyList();
     /** The hand goes back where it was on the first resume, unless the menu starts as at power-on. */
@@ -123,6 +126,8 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         }
         liveTvPkg = getString(R.string.live_tv_package);
         miiStore = new MiiStore(this);
+        Wiimote.setUp(this);
+        wiimote = new Wiimote(this, menu::pointerMove);
         // No welcome screen means Android closed the menu while an app ran, to free memory; coming back to it,
         // the hand goes back to the channel that was opened.
         handPending = !introPending;
@@ -155,6 +160,7 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
                     prefs.getInt(HAND_PAGE, 0));
         }
         menu.start();
+        wiimote.resume();
         if (introPending) {
             introPending = false;
             music.pause();
@@ -171,6 +177,7 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         music.pause();
         fileMusic.stop();
         menu.stop();
+        wiimote.pause();
     }
 
     @Override
@@ -194,11 +201,17 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         sounds.release();
         music.release();
         fileMusic.stop();
+        wiimote.release();
     }
 
     @Override
     public void onIntroDismissed() {
         if (resumed) playMenuMusic(true);
+    }
+
+    @Override
+    public void onPointedAt() {
+        wiimote.rumble();
     }
 
     /** User-installed menu music takes precedence over the bundled track. */
@@ -312,7 +325,10 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         while (at < channels.size() && dock.contains(channels.get(at).key)) at++;
         channels.add(at++, miiChannel());
         if (games) channels.add(at++, gamesChannel());
-        if (getResources().getBoolean(R.bool.grok_channel)) channels.add(at, grokChannel());
+        if (getResources().getBoolean(R.bool.grok_channel)) channels.add(at++, grokChannel());
+        if (getResources().getBoolean(R.bool.wiimote_channel) && Wiimote.enabled(this)) {
+            channels.add(at, wiimoteChannel());
+        }
         List<String> usual = new ArrayList<>(channels.size());
         for (WiiMenuView.Channel ch : channels) usual.add(ch.key);
         usualOrder = usual;
@@ -353,6 +369,14 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         if (grokBanner == null) grokBanner = new GrokBanner(name, miiFace);
         return new WiiMenuView.Channel(getPackageName() + ".grok", name, grokBanner, null,
                 new Intent(this, GrokActivity.class));
+    }
+
+    /** The built-in Wiimote channel, after the Grok channel; its tile is the white remote, sending out waves. */
+    private WiiMenuView.Channel wiimoteChannel() {
+        String name = getString(R.string.wiimote_channel_name);
+        if (wiimoteBanner == null) wiimoteBanner = new WiimoteBanner(name, miiFace);
+        return new WiiMenuView.Channel(getPackageName() + ".wiimote", name, wiimoteBanner, null,
+                new Intent(this, WiimoteActivity.class));
     }
 
     /** The built-in Mii channel, right after the dock apps; its tile shows the plaza's residents. */

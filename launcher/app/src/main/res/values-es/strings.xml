@@ -120,4 +120,17 @@
     <string name="games_key_b">Atrás: %1$s</string>
     <string name="games_key_menu">Mantén el rojo: menú de RetroArch</string>
     <string name="grok_hint">Las flechas mueven la mano · OK toca · CH+ y CH− desplazan · Atrás vuelve</string>
-    <string name="grok_offline">Grok no se abrió. Revisa la conexión y pulsa OK para reintentar.</string></resources>
+    <string name="grok_offline">Grok no se abrió. Revisa la conexión y pulsa OK para reintentar.</string>
+    <string name="wiimote_title">Usa tu móvil como mando de Wii</string>
+    <string name="wiimote_step_scan">Escanea el código con la cámara del móvil.</string>
+    <string name="wiimote_step_start">Toca Empezar en la página que se abre.</string>
+    <string name="wiimote_step_point">Apunta a la tele y mueve el móvil: la mano lo sigue. A abre, B vuelve.</string>
+    <string name="wiimote_waiting">Esperando un móvil…</string>
+    <string name="wiimote_joined">¡Conectado! Volviendo al menú…</string>
+    <string name="wiimote_offline">No hay conexión con el servidor. Revisa internet.</string>
+    <string name="wiimote_hint">El código solo sirve con esta pantalla abierta · Atrás vuelve al menú</string>
+    <plurals name="wiimote_phones">
+        <item quantity="one">%1$d móvil conectado</item>
+        <item quantity="many">%1$d móviles conectados</item>
+        <item quantity="other">%1$d móviles conectados</item>
+    </plurals></resources>
