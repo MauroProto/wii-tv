@@ -138,7 +138,7 @@
     <string name="mii_height">Height</string>
     <string name="mii_weight">Build</string>
     <string name="mii_welcome_title">Mii Plaza</string>
-    <string name="mii_welcome_body">These Miis live here. Make one of your own with the buttons on the left, or point at any of them and press OK.</string>
+    <string name="mii_welcome_body">Your Miis live here. Make your own with the buttons on the left.</string>
     <string name="mii_help_title">Help</string>
     <string name="mii_help_body">Point at a Mii and press OK to choose it; press OK again to pick it up and carry it. Drop it on the delete button to erase it, or on the edit button to change it. The whistle at the bottom right lines everyone up, and the button at the top right starts a parade.</string>
     <string name="mii_exit_title">Wii Menu</string>

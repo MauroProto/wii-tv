@@ -84,7 +84,7 @@
     <string name="mii_height">Altura</string>
     <string name="mii_weight">Complexión</string>
     <string name="mii_welcome_title">Plaza Mii</string>
-    <string name="mii_welcome_body">Estos Miis viven aquí. Crea el tuyo con los botones de la izquierda, o señala cualquiera y pulsa OK.</string>
+    <string name="mii_welcome_body">Aquí viven tus Miis. Crea el tuyo con los botones de la izquierda.</string>
     <string name="mii_help_title">Ayuda</string>
     <string name="mii_help_body">Señala un Mii y pulsa OK para elegirlo; pulsa OK otra vez para levantarlo y llevarlo. Suéltalo en el botón de borrar para borrarlo, o en el de editar para cambiarlo. El silbato de abajo a la derecha los pone en fila y el botón de arriba a la derecha empieza un desfile.</string>
     <string name="mii_exit_title">Menú Wii</string>

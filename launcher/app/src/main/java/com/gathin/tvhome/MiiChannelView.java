@@ -27,7 +27,6 @@ final class MiiChannelView extends View {
         void done(String text);
     }
 
-    static final int SEED_COUNT = 8;
     private static final int WHITE = 0xFFFCFCFA;
 
     private static final String[] KB_ROWS = {"1234567890", "qwertyuiop", "asdfghjkl\u00F1", "zxcvbnm\u00B4-."};
@@ -105,7 +104,7 @@ final class MiiChannelView extends View {
                 WiiSounds.MOVE, WiiSounds.SELECT, WiiSounds.PAGE, WiiSounds.BACK, WiiSounds.MENU);
         packSounds = sound && pack != null ? new MiiPackSounds(context, pack) : null;
         store = new MiiStore(context);
-        plaza.setMiis(store.loadOrSeed(rnd, SEED_COUNT));
+        plaza.setMiis(store.load());
         setFocusable(true);
         setFocusableInTouchMode(true);
         final List<MiiPlaza.Sprite> list = new ArrayList<>(plaza.sprites);

@@ -7,7 +7,7 @@
     <string name="mii_full">La plaza está llena. Borrá un Mii para hacer lugar.</string>
     <string name="mii_trash_hint">Primero elegí un Mii, o llevalo hasta el botón de borrar.</string>
     <string name="mii_remote_none">Acá no hay un control de Wii para llevar Miis.</string>
-    <string name="mii_welcome_body">Estos Miis viven acá. Creá el tuyo con los botones de la izquierda, o señalá cualquiera y presioná OK.</string>
+    <string name="mii_welcome_body">Acá viven tus Miis. Creá el tuyo con los botones de la izquierda.</string>
     <string name="mii_help_body">Señalá un Mii y presioná OK para elegirlo; presioná OK otra vez para levantarlo y llevarlo. Soltalo en el botón de borrar para borrarlo, o en el de editar para cambiarlo. El silbato de abajo a la derecha los pone en fila y el botón de arriba a la derecha arranca un desfile.</string>
     <string name="mii_new_gender">Elegí el sexo.</string>
     <string name="mii_new_how">¿Cómo querés empezar?</string>

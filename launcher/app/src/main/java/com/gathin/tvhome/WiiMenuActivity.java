@@ -31,7 +31,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 
 /** Home screen in the style of the old console menu; all of the drawing is in WiiMenuView. */
@@ -382,7 +381,7 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         }
         String name = getString(R.string.mii_channel_name);
         MiiPack.get(this);
-        List<Mii> miis = miiStore.loadOrSeed(new Random(), MiiChannelView.SEED_COUNT);
+        List<Mii> miis = miiStore.load();
         miiVersion = miiStore.version();
         return new WiiMenuView.Channel(getPackageName() + ".mii", name, new MiiBanner(miis, name, miiFace), null,
                 new Intent(this, MiiChannelActivity.class));

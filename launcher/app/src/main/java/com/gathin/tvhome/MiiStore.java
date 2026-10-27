@@ -8,7 +8,6 @@ import org.json.JSONException;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 /** The plaza's characters, kept as one JSON array in the app's private preferences. */
 final class MiiStore {
@@ -36,17 +35,6 @@ final class MiiStore {
         return out;
     }
 
-    /** The saved characters; the very first time, a few random ones so the plaza is not empty. */
-    List<Mii> loadOrSeed(Random r, int count) {
-        List<Mii> miis = load();
-        if (miis.isEmpty() && !seeded()) {
-            for (int i = 0; i < count; i++) miis.add(Mii.random(r, i % 2 == 1));
-            save(miis);
-            markSeeded();
-        }
-        return miis;
-    }
-
     void save(List<Mii> miis) {
         JSONArray a = new JSONArray();
         try {
@@ -60,14 +48,6 @@ final class MiiStore {
     /** Bumped on every save, so the channel menu knows to redraw its banner. */
     int version() {
         return prefs.getInt("version", 0);
-    }
-
-    boolean seeded() {
-        return prefs.getBoolean("seeded", false);
-    }
-
-    void markSeeded() {
-        prefs.edit().putBoolean("seeded", true).apply();
     }
 
     boolean welcomed() {
