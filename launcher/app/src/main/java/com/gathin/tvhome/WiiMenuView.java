@@ -415,6 +415,10 @@ public class WiiMenuView extends View {
         return menuOpen;
     }
 
+    public int getFocus() {
+        return focus;
+    }
+
     public void startHdmiAppearAnimation() {
         page = 0;
         hdmiDisappearing = false;

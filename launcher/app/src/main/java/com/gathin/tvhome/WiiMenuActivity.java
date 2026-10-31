@@ -73,6 +73,8 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     private static final String HAND_PAGE = "hand_page";
     private static final String DARK_MODE = "dark_mode";
 
+    private WiiChannelDetailOverlay channelOverlay;
+    private final RectF channelSlotRect = new RectF();
     private WiiMenuView menu;
     private WiiSounds sounds;
     private WiiMusic music;
@@ -270,10 +272,41 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         badgeTextPaint.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
         badgeTextPaint.setColor(Color.WHITE);
 
+        channelOverlay = new WiiChannelDetailOverlay(this, new WiiChannelDetailOverlay.Listener() {
+            @Override
+            public void onStartApp(WiiMenuView.Channel channel) {
+                if (channel.key.startsWith("hdmi.") && hdmiTvView != null) {
+                    try {
+                        hdmiTvView.setStreamVolume(1.0f);
+                    } catch (Throwable ignored) {}
+                }
+                if (channelOverlay != null) {
+                    channelOverlay.setVisibility(View.GONE);
+                }
+                open(channel.intent, true);
+            }
+
+            @Override
+            public void onChannelClosed() {
+                playMenuMusic(false);
+                if (menu != null) {
+                    menu.requestFocus();
+                    menu.invalidate();
+                }
+                if (handOverlay != null) {
+                    handOverlay.invalidate();
+                }
+            }
+        }, sounds);
+        channelOverlay.setDarkMode(menu.isDarkMode());
+        root.addView(channelOverlay, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
         // Overlay that draws the HDMI device badge and the Wii cursor hand ON TOP of the HDMI miniature video
         handOverlay = new View(this) {
             @Override
             protected void onDraw(Canvas canvas) {
+                if (channelOverlay != null && channelOverlay.isOpen()) return;
                 drawHdmiBadge(canvas);
                 if (menu != null) {
                     menu.drawHand(canvas);
@@ -335,7 +368,7 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
                 tvViewContainer.setAlpha(1.0f);
             }
 
-            boolean showOnScreen = activeHdmiId != null && pagePos <= 0.05f && !introShowing && !menuOpen;
+            boolean showOnScreen = activeHdmiId != null && pagePos <= 0.05f && !introShowing && !menuOpen && (channelOverlay == null || !channelOverlay.isOpen());
             float targetTx = showOnScreen ? 0f : -4000f;
             if (tvViewContainer.getTranslationX() != targetTx) {
                 tvViewContainer.setTranslationX(targetTx);
@@ -353,7 +386,13 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         liveTvPkg = getString(R.string.live_tv_package);
         miiStore = new MiiStore(this);
         Wiimote.setUp(this);
-        wiimote = new Wiimote(this, menu::pointerMove);
+        wiimote = new Wiimote(this, (dx, dy) -> {
+            if (channelOverlay != null && channelOverlay.isOpen()) {
+                channelOverlay.pointerMove(dx, dy);
+            } else {
+                menu.pointerMove(dx, dy);
+            }
+        });
         handPending = !introPending;
 
         tvInputManager = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
@@ -380,6 +419,21 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
             registerReceiver(testHdmiReceiver, testFilter);
         }
         setUpHdmiHotplugListener();
+
+        WiiChannelCustomization.getVideosDir();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.READ_MEDIA_AUDIO) != PackageManager.PERMISSION_GRANTED
+                    || checkSelfPermission(android.Manifest.permission.READ_MEDIA_VIDEO) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{
+                        android.Manifest.permission.READ_MEDIA_AUDIO,
+                        android.Manifest.permission.READ_MEDIA_VIDEO
+                }, 101);
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE}, 101);
+            }
+        }
     }
 
     private final Map<Integer, Boolean> portHotplugMap = new ConcurrentHashMap<>();
@@ -865,6 +919,7 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     }
 
     private void drawHdmiBadge(Canvas canvas) {
+        if (channelOverlay != null && channelOverlay.isOpen()) return;
         if (activeHdmiId == null || !resumed || hdmiTvView == null) return;
         if (menu == null || menu.isIntroShowing() || menu.isMenuOpen()) return;
         if (menu.getPagePos() > 0.05f) return;
@@ -1002,6 +1057,9 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     protected void onResume() {
         super.onResume();
         resumed = true;
+        if (channelOverlay != null && channelOverlay.isOpen()) {
+            channelOverlay.closeImmediately();
+        }
         if (appsDirty || miiStore.version() != miiVersion || baseChannels.isEmpty()) reloadApps();
         updateHdmiState();
         if (handPending) {
@@ -1026,12 +1084,18 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     protected void onPause() {
         super.onPause();
         resumed = false;
+        if (channelOverlay != null && channelOverlay.isOpen()) {
+            channelOverlay.closeImmediately();
+        }
         music.pause();
         fileMusic.stop();
         menu.stop();
         wiimote.pause();
         tunedHdmiId = null;
         videoAvailable = false;
+        if (channelOverlay != null) {
+            channelOverlay.stopAllMedia();
+        }
         if (hdmiTvView != null) {
             try {
                 hdmiTvView.setStreamVolume(1.0f);
@@ -1068,6 +1132,9 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
             try {
                 hdmiTvView.reset();
             } catch (Throwable ignored) {}
+        }
+        if (channelOverlay != null) {
+            channelOverlay.stopAllMedia();
         }
         sounds.release();
         music.release();
@@ -1145,6 +1212,9 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        if (channelOverlay != null && channelOverlay.isOpen()) {
+            channelOverlay.closeImmediately();
+        }
         boolean refPose = intent.getBooleanExtra(EXTRA_REF_POSE, false);
         if (intent.getBooleanExtra("show_intro", false)) introPending = true;
         if (menu.hasWindowFocus() && !refPose) menu.home();
@@ -1157,18 +1227,40 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_HOME || keyCode == KeyEvent.KEYCODE_APP_SWITCH) {
+            if (channelOverlay != null && channelOverlay.isOpen()) {
+                channelOverlay.closeImmediately();
+            }
+            if (menu != null) {
+                menu.home();
+            }
+            return true;
+        }
+        if (channelOverlay != null && channelOverlay.isOpen()) {
+            return channelOverlay.handleKeyDown(keyCode, event);
+        }
         if (menu.handleKey(event)) return true;
         return super.onKeyDown(keyCode, event);
     }
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_HOME || keyCode == KeyEvent.KEYCODE_APP_SWITCH) {
+            return true;
+        }
+        if (channelOverlay != null && channelOverlay.isOpen()) {
+            return channelOverlay.handleKeyUp(keyCode, event);
+        }
         if (menu.handleKeyUp(keyCode)) return true;
         return super.onKeyUp(keyCode, event);
     }
 
     @Override
     public void onBackPressed() {
+        if (channelOverlay != null && channelOverlay.isOpen()) {
+            channelOverlay.handleBack();
+            return;
+        }
         menu.back();
     }
 
@@ -1201,7 +1293,7 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
             CharSequence label = ri.loadLabel(pm);
             Drawable banner = ri.activityInfo.loadBanner(pm);
             if (banner == null) banner = ri.activityInfo.applicationInfo.loadBanner(pm);
-            Drawable icon = banner == null ? ri.loadIcon(pm) : null;
+            Drawable icon = ri.loadIcon(pm);
             Intent launch = new Intent(Intent.ACTION_MAIN)
                     .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
                     .setClassName(pkg, ri.activityInfo.name)
@@ -1314,6 +1406,23 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
 
     @Override
     public void onChannel(WiiMenuView.Channel channel) {
+        if (channelOverlay != null) {
+            int slot = menu != null ? menu.getFocus() : -1;
+            if (slot >= 0 && menu != null) {
+                menu.getSlotRect(slot, channelSlotRect);
+            } else if (menu != null && menu.focusBounds(zoomFrom)) {
+                channelSlotRect.set(zoomFrom);
+            } else {
+                channelSlotRect.set(0, 0, 100, 100);
+            }
+            if (music != null) music.pause();
+            if (fileMusic != null) fileMusic.stop();
+            channelOverlay.setDarkMode(menu.isDarkMode());
+            channelOverlay.openChannel(channel, channelSlotRect);
+            if (tvViewContainer != null) tvViewContainer.setTranslationX(-4000f);
+            if (handOverlay != null) handOverlay.invalidate();
+            return;
+        }
         if (channel.key.startsWith("hdmi.") && hdmiTvView != null) {
             try {
                 hdmiTvView.setStreamVolume(1.0f);
@@ -1344,6 +1453,9 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     public void onThemeButton() {
         boolean next = !menu.isDarkMode();
         menu.setDarkMode(next);
+        if (channelOverlay != null) {
+            channelOverlay.setDarkMode(next);
+        }
         getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(DARK_MODE, next).apply();
     }
 
