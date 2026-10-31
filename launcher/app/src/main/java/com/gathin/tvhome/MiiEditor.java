@@ -460,7 +460,7 @@ final class MiiEditor {
 
     void draw(Canvas c) {
         float s = ui.s;
-        MiiArt.opaque(ui.fill).setShader(new LinearGradient(0, 0, 0, 1080f * s, 0xFFF4FFFC, 0xFFCEFFF1, Shader.TileMode.CLAMP));
+        MiiArt.opaque(ui.fill).setShader(ui.gradient(0f, 1080f * s, 0xFFF4FFFC, 0xFFCEFFF1));
         c.drawRect(0, 0, 1920f * s, 1080f * s, ui.fill);
         ui.fill.setShader(null);
         drawPreview(c);
