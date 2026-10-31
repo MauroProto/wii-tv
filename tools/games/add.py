@@ -47,7 +47,26 @@ SETTINGS = {
     "rgui_browser_directory": ROMS,
     # In-game saves reach the file within ten seconds, even when RetroArch is closed without asking.
     "autosave_interval": "10",
+    "savestate_auto_save": "true",
+    "savestate_auto_load": "true",
     "auto_remaps_enable": "true",
+    # Fallback player 1 bindings for TV remotes
+    "input_player1_a_btn": "23",
+    "input_player1_b_btn": "4",
+    "input_player1_up_btn": "19",
+    "input_player1_down_btn": "20",
+    "input_player1_left_btn": "21",
+    "input_player1_right_btn": "22",
+    "input_player1_start_btn": "183",
+    "input_player1_select_btn": "184",
+    "input_player1_y_btn": "185",
+    "input_player1_x_btn": "186",
+    "input_menu_toggle_btn": "82",
+    # Logging
+    "log_to_file": "true",
+    "log_verbosity": "true",
+    "libretro_log_level": "0",
+    "frontend_log_level": "0",
 }
 # Whatever port the remote lands on, it plays as player 1.
 REMAP = 'input_remap_port_p2 = "0"\ninput_remap_port_p3 = "0"\ninput_remap_port_p4 = "0"\n'
@@ -176,8 +195,26 @@ def md5_on_tv(dev, remote):
 
 
 def put_bytes(dev, data, remote, label=None):
-    """Writes data to remote as base64 through plain shell commands; True when the md5 matches."""
-    chunk = min(CHUNK, dev.max_chunk_size * 3 // 4 - 64)
+    """Writes data to remote: tries dev.push via temporary file, falls back to base64 chunks."""
+    import tempfile
+    want = hashlib.md5(data).hexdigest()
+    try:
+        with tempfile.NamedTemporaryFile(delete=False) as tf:
+            tf.write(data)
+            tmp_local = tf.name
+        try:
+            dev.push(tmp_local, remote, transport_timeout_s=120.0, read_timeout_s=120.0)
+            if md5_on_tv(dev, remote) == want:
+                return True
+        finally:
+            try:
+                os.remove(tmp_local)
+            except OSError:
+                pass
+    except Exception:
+        pass
+
+    chunk = min(8192, dev.max_chunk_size * 3 // 4 - 64)
     chunk -= chunk % 3   # whole base64 groups, or each chunk would end in '=' padding and corrupt the stream
     q, tmp = shlex.quote(remote), shlex.quote(remote + ".b64")
     sh(dev, f"rm -f {q} {tmp}")
@@ -191,7 +228,7 @@ def put_bytes(dev, data, remote, label=None):
     if label and n > 4:
         print()
     sh(dev, f"base64 -d {tmp} > {q} && rm {tmp}")
-    return md5_on_tv(dev, remote) == hashlib.md5(data).hexdigest()
+    return md5_on_tv(dev, remote) == want
 
 
 def push_file(dev, local, remote):

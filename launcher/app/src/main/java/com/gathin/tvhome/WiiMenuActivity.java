@@ -29,6 +29,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.provider.MediaStore;
+import android.database.Cursor;
 import android.text.TextPaint;
 import android.view.KeyEvent;
 import android.view.View;
@@ -217,6 +219,7 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         menu.setSounds(sounds);
         menu.setDarkMode(getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(DARK_MODE, false));
         menu.setSettingsLabel(getString(R.string.wii_settings_label));
+        menu.setMusicMuted(getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean("music_muted", false));
 
         // Root container with menu and miniature TvView
         FrameLayout root = new FrameLayout(this);
@@ -1091,12 +1094,41 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
             if (withStart) sounds.play(WiiSounds.START);
             return;
         }
+        SharedPreferences sp = getSharedPreferences(PREFS, MODE_PRIVATE);
+        if (sp.getBoolean("music_muted", false)) {
+            music.pause();
+            fileMusic.stop();
+            return;
+        }
+        String customPath = sp.getString("custom_music_path", null);
+        if (customPath != null) {
+            File musicFile = new File(customPath);
+            if (!musicFile.isFile()) {
+                try {
+                    File fallback = new File(android.os.Environment.getExternalStoragePublicDirectory(
+                            android.os.Environment.DIRECTORY_MUSIC), musicFile.getName());
+                    if (fallback.isFile()) {
+                        musicFile = fallback;
+                        sp.edit().putString("custom_music_path", fallback.getAbsolutePath()).apply();
+                    }
+                } catch (Throwable ignored) {}
+            }
+            if (musicFile.isFile()) {
+                fileMusic.stop();
+                music.setCustomTrack(musicFile.getAbsolutePath());
+                if (withStart) music.startWithJingle(
+                        getResources().getBoolean(R.bool.wii_sounds) ? R.raw.wii_start : 0, 1000L);
+                else music.resume();
+                return;
+            }
+        }
         if (fileMusic.hasMusic()) {
             music.pause();
             if (withStart && !fileMusic.hasStart()) sounds.play(WiiSounds.START);
             fileMusic.play(withStart);
         } else {
             fileMusic.stop();
+            music.setTrack(R.raw.wii_menu_music);
             if (withStart) music.startWithJingle(
                     getResources().getBoolean(R.bool.wii_sounds) ? R.raw.wii_start : 0, 1000L);
             else music.resume();
@@ -1313,6 +1345,187 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
         boolean next = !menu.isDarkMode();
         menu.setDarkMode(next);
         getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(DARK_MODE, next).apply();
+    }
+
+    @Override
+    public void onMusicButton() {
+        showMusicMenu();
+    }
+
+    private void checkStoragePermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.READ_MEDIA_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.READ_MEDIA_AUDIO}, 101);
+            }
+        } else {
+            if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE}, 101);
+            }
+        }
+    }
+
+    private void showMusicMenu() {
+        checkStoragePermissions();
+        List<WiiMenuView.MenuItem> items = new ArrayList<>();
+        SharedPreferences sp = getSharedPreferences(PREFS, MODE_PRIVATE);
+        boolean isMuted = sp.getBoolean("music_muted", false);
+        String currentPath = sp.getString("custom_music_path", null);
+
+        // 1. Mute / Unmute
+        if (isMuted) {
+            items.add(new WiiMenuView.MenuItem("🔊 Activar sonido de fondo", () -> {
+                sp.edit().putBoolean("music_muted", false).apply();
+                if (menu != null) menu.setMusicMuted(false);
+                playMenuMusic(false);
+                Toast.makeText(this, "Sonido de fondo activado", Toast.LENGTH_SHORT).show();
+            }));
+        } else {
+            items.add(new WiiMenuView.MenuItem("🔇 Silenciar sonido de fondo", () -> {
+                sp.edit().putBoolean("music_muted", true).apply();
+                if (menu != null) menu.setMusicMuted(true);
+                music.pause();
+                fileMusic.stop();
+                Toast.makeText(this, "Sonido de fondo silenciado", Toast.LENGTH_SHORT).show();
+            }));
+        }
+
+        // 2. Default Track
+        boolean isDefault = (currentPath == null || currentPath.isEmpty());
+        String defaultLabel = (isDefault ? "✓ " : "") + "Música original (Wii)";
+        items.add(new WiiMenuView.MenuItem(defaultLabel, () -> {
+            sp.edit().remove("custom_music_path").putBoolean("music_muted", false).apply();
+            if (menu != null) menu.setMusicMuted(false);
+            playMenuMusic(false);
+            Toast.makeText(this, "Música original de Wii", Toast.LENGTH_SHORT).show();
+        }));
+
+        // 3. Scan MP3s from Music directory
+        List<File> mp3Files = findMp3Files();
+        for (File mp3 : mp3Files) {
+            boolean selected = !isDefault && isSameMusicTrack(mp3, currentPath);
+            String label = (selected ? "✓ " : "") + mp3.getName();
+            items.add(new WiiMenuView.MenuItem(label, () -> {
+                sp.edit().putString("custom_music_path", mp3.getAbsolutePath())
+                        .putBoolean("music_muted", false).apply();
+                if (menu != null) menu.setMusicMuted(false);
+                playMenuMusic(false);
+                Toast.makeText(this, "Reproduciendo: " + mp3.getName(), Toast.LENGTH_SHORT).show();
+            }));
+        }
+
+        if (mp3Files.isEmpty()) {
+            items.add(new WiiMenuView.MenuItem("(Sin archivos en /Music)", () -> {
+                Toast.makeText(this, "Coloca archivos .mp3 en la carpeta Music de la TV", Toast.LENGTH_LONG).show();
+            }));
+        }
+
+        menu.showMenu("Música de fondo", items);
+    }
+
+    private boolean isSameMusicTrack(File file, String currentPath) {
+        if (file == null || currentPath == null || currentPath.trim().isEmpty()) return false;
+        if (file.getAbsolutePath().equals(currentPath)) return true;
+        try {
+            File currentFile = new File(currentPath);
+            if (file.getCanonicalPath().equals(currentFile.getCanonicalPath())) return true;
+        } catch (Throwable ignored) {}
+        return file.getName().equalsIgnoreCase(new File(currentPath).getName());
+    }
+
+    private List<File> findMp3Files() {
+        List<File> result = new ArrayList<>();
+        Set<String> visitedCanonicalPaths = new HashSet<>();
+        Set<String> visitedNames = new HashSet<>();
+
+        List<File> searchDirs = new ArrayList<>();
+        Set<String> visitedDirPaths = new HashSet<>();
+
+        File[] candidateDirs = new File[] {
+            android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC),
+            new File(android.os.Environment.getExternalStorageDirectory(), "Music"),
+            new File("/sdcard/Music"),
+            new File("/storage/emulated/0/Music"),
+            new File("/storage/self/primary/Music")
+        };
+
+        for (File dir : candidateDirs) {
+            if (dir == null) continue;
+            try {
+                if (!dir.exists() || !dir.isDirectory()) continue;
+                String canonical = dir.getCanonicalPath();
+                if (visitedDirPaths.add(canonical)) {
+                    searchDirs.add(dir);
+                }
+            } catch (Throwable ignored) {
+                if (dir.exists() && dir.isDirectory() && visitedDirPaths.add(dir.getAbsolutePath())) {
+                    searchDirs.add(dir);
+                }
+            }
+        }
+
+        for (File dir : searchDirs) {
+            scanDirectoryForMp3(dir, result, visitedCanonicalPaths, visitedNames, 0);
+        }
+
+        try {
+            Uri uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+            String[] proj = {MediaStore.Audio.Media.DATA};
+            Cursor c = getContentResolver().query(uri, proj, null, null, null);
+            if (c != null) {
+                int idx = c.getColumnIndex(MediaStore.Audio.Media.DATA);
+                while (c.moveToNext()) {
+                    String path = c.getString(idx);
+                    if (path != null && path.toLowerCase(Locale.ROOT).endsWith(".mp3")) {
+                        File f = new File(path);
+                        if (f.isFile()) {
+                            addMp3File(f, result, visitedCanonicalPaths, visitedNames);
+                        }
+                    }
+                }
+                c.close();
+            }
+        } catch (Throwable ignored) {}
+
+        Collections.sort(result, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+        return result;
+    }
+
+    private void addMp3File(File f, List<File> result, Set<String> visitedCanonicalPaths, Set<String> visitedNames) {
+        if (f == null || !f.isFile()) return;
+        String name = f.getName();
+        if (!name.toLowerCase(Locale.ROOT).endsWith(".mp3")) return;
+
+        String canonicalPath;
+        try {
+            canonicalPath = f.getCanonicalPath();
+        } catch (Throwable t) {
+            canonicalPath = f.getAbsolutePath();
+        }
+
+        String nameKey = name.toLowerCase(Locale.ROOT);
+        if (visitedCanonicalPaths.contains(canonicalPath) ||
+            visitedCanonicalPaths.contains(f.getAbsolutePath()) ||
+            visitedNames.contains(nameKey)) {
+            return;
+        }
+
+        visitedCanonicalPaths.add(canonicalPath);
+        visitedCanonicalPaths.add(f.getAbsolutePath());
+        visitedNames.add(nameKey);
+        result.add(f);
+    }
+
+    private void scanDirectoryForMp3(File dir, List<File> result, Set<String> visitedCanonicalPaths, Set<String> visitedNames, int depth) {
+        if (dir == null || !dir.exists() || !dir.isDirectory() || depth > 2) return;
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        for (File f : files) {
+            if (f.isDirectory()) {
+                scanDirectoryForMp3(f, result, visitedCanonicalPaths, visitedNames, depth + 1);
+            } else if (f.isFile()) {
+                addMp3File(f, result, visitedCanonicalPaths, visitedNames);
+            }
+        }
     }
 
     @Override

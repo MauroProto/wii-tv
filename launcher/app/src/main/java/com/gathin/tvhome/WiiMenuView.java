@@ -1,6 +1,10 @@
 package com.gathin.tvhome;
 
 import android.annotation.TargetApi;
+import android.app.ActivityManager;
+import android.os.Environment;
+import android.os.StatFs;
+import java.io.File;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -61,6 +65,7 @@ public class WiiMenuView extends View {
         void onSdButton();
         void onInputsButton();
         default void onThemeButton() { }
+        default void onMusicButton() { }
         default void onPowerButton() { }
         /** The welcome screen started to leave: the menu is coming up, as after power-on. */
         void onIntroDismissed();
@@ -109,6 +114,8 @@ public class WiiMenuView extends View {
     static final int BTN_INPUTS = -3;
     static final int BTN_THEME = -4;
     static final int BTN_POWER = -5;
+    static final int BTN_MUSIC = -6;
+    private static final int EXTRA_BUTTONS = 6;
     private static final long INTRO_AUTO_MS = 12_000L;
     /** How often the clock reads the time; it shows minutes, so this only bounds how late a new minute appears. */
     private static final long CLOCK_CHECK_MS = 250L;
@@ -116,7 +123,7 @@ public class WiiMenuView extends View {
     // What a frame draws, in drawing order.
     private static final int IT_BASE = 0, IT_TILE = 1, IT_ARROW_R = 2, IT_ARROW_L = 3, IT_BTN_L = 4, IT_BTN_R = 5,
             IT_SD = 6, IT_DIGITS = 7, IT_COLON = 8, IT_AMPM = 9, IT_DATE = 10, IT_HAND = 11, IT_MENU = 12,
-            IT_INTRO = 13, IT_THEME = 14, IT_POWER = 15;
+            IT_INTRO = 13, IT_THEME = 14, IT_POWER = 15, IT_MUSIC = 16;
 
     // Channel frames: the box through the corner arcs' ends; the sides bow out by TILE_BULGE in the middle.
     private static final float TILE_X0 = 163f;
@@ -149,6 +156,10 @@ public class WiiMenuView extends View {
     private static final float THEME_T = 897f;
     private static final float THEME_R = 514f;
     private static final float THEME_B = 994f;
+    private static final float MUSIC_L = 1406f;
+    private static final float MUSIC_T = 897f;
+    private static final float MUSIC_R = 1474f;
+    private static final float MUSIC_B = 994f;
     private static final float POWER_L = 1496f;
     private static final float POWER_T = 897f;
     private static final float POWER_R = 1564f;
@@ -176,7 +187,8 @@ public class WiiMenuView extends View {
     private static final float AMPM_CAP = 34f;
     private static final float DATE_TRACKING = 2f;
     private static final float DATE_EXTRA_SPACE = 3f;
-    private static final float DATE_BASE = 981f;
+    private static final float DATE_BASE = 966f;
+    private static final float STATS_BASE = 1008f;
     private static final float DATE_CAP = 55f;
     private static final int CLOCK_COLOR = 0xFF9A9A9A;
     private static final int DATE_COLOR = 0xFF7C7C7C;
@@ -198,7 +210,7 @@ public class WiiMenuView extends View {
     private int focus;
     private int page;
     private float pagePos;
-    private float[] lift = new float[MIN_PAGES * SLOTS_PER_PAGE + 5];
+    private float[] lift = new float[MIN_PAGES * SLOTS_PER_PAGE + EXTRA_BUTTONS];
     private float handX, handY;
     /** Set each frame when a live tile is on screen. */
     private boolean liveShown;
@@ -280,13 +292,25 @@ public class WiiMenuView extends View {
     /** Everything outside a channel frame, for trimming a live tile to the frame. */
     private Path tileOutside;
     /** Outlines with their corners already rounded: the shapes a CornerPathEffect gives, worked out once. */
-    private Path arrowRound, sdRound, warnRound;
+    private Path arrowRound, warnRound;
     /** Per clock position, its seven segments in SEGMENT_ORDER. */
     private Path[][] digitSegs;
     private LinearGradient arrowBody, arrowShine;
     private LinearGradient[] menuShaders;
 
     private int clockHour = 12, clockMinute;
+    private boolean musicMuted;
+    private String statsText = "";
+    private float statsTotal;
+    private long lastStatsUpdateMs;
+
+    public void setMusicMuted(boolean muted) {
+        if (this.musicMuted != muted) {
+            this.musicMuted = muted;
+            invalidate();
+        }
+    }
+
     private boolean clockPm, clockStale = true;
     /** The TV's 24-hour setting: hours 0-23 and no AM/PM, as on the console's PAL menu. */
     private boolean clock24;
@@ -312,6 +336,7 @@ public class WiiMenuView extends View {
         @Override
         public void run() {
             colonOn = !colonOn;
+            updateStats();
             invalidate();
             if (started && !refPose) postDelayed(this, 1000);
         }
@@ -470,7 +495,7 @@ public class WiiMenuView extends View {
 
         channels.add(0, hdmiCh);
         pages = Math.max(MIN_PAGES, (channels.size() + SLOTS_PER_PAGE - 1) / SLOTS_PER_PAGE);
-        int n = pages * SLOTS_PER_PAGE + 5;
+        int n = pages * SLOTS_PER_PAGE + EXTRA_BUTTONS;
         if (lift.length != n) lift = new float[n];
         if (focus >= 0) focus++;
         if (focus >= pages * SLOTS_PER_PAGE) focus = 0;
@@ -487,7 +512,7 @@ public class WiiMenuView extends View {
         if (pagePos > 0.05f || !started) {
             channels.remove(0);
             pages = Math.max(MIN_PAGES, (channels.size() + SLOTS_PER_PAGE - 1) / SLOTS_PER_PAGE);
-            int n = pages * SLOTS_PER_PAGE + 5;
+            int n = pages * SLOTS_PER_PAGE + EXTRA_BUTTONS;
             if (lift.length != n) lift = new float[n];
             if (focus > 0) focus--;
             stillGen++;
@@ -500,7 +525,7 @@ public class WiiMenuView extends View {
             if (!channels.isEmpty() && channels.get(0).key.startsWith("hdmi.")) {
                 channels.remove(0);
                 pages = Math.max(MIN_PAGES, (channels.size() + SLOTS_PER_PAGE - 1) / SLOTS_PER_PAGE);
-                int n = pages * SLOTS_PER_PAGE + 5;
+                int n = pages * SLOTS_PER_PAGE + EXTRA_BUTTONS;
                 if (lift.length != n) lift = new float[n];
                 if (focus > 0) focus--;
                 stillGen++;
@@ -519,7 +544,7 @@ public class WiiMenuView extends View {
         channels.clear();
         channels.addAll(list);
         pages = Math.max(MIN_PAGES, (channels.size() + SLOTS_PER_PAGE - 1) / SLOTS_PER_PAGE);
-        int n = pages * SLOTS_PER_PAGE + 5;
+        int n = pages * SLOTS_PER_PAGE + EXTRA_BUTTONS;
         if (lift.length != n) lift = new float[n];
         if (focus >= pages * SLOTS_PER_PAGE) focus = 0;
         if (page >= pages) {
@@ -797,7 +822,7 @@ public class WiiMenuView extends View {
                 page = next / SLOTS_PER_PAGE;
             } else if (dy > 0) {
                 int col = focus % WiiGrid.COLS;
-                focus = col == 0 ? BTN_SETTINGS : col == 1 ? BTN_SD : col == 2 ? BTN_THEME : BTN_POWER;
+                focus = col == 0 ? BTN_SETTINGS : col == 1 ? BTN_SD : col == 2 ? BTN_THEME : BTN_MUSIC;
             }
         } else if (dy < 0) {
             int col = focus == BTN_SETTINGS ? 0 : focus == BTN_SD ? 1 : focus == BTN_THEME ? 2 : 3;
@@ -805,12 +830,14 @@ public class WiiMenuView extends View {
         } else if (dx < 0) {
             if (focus == BTN_SD) focus = BTN_SETTINGS;
             else if (focus == BTN_THEME) focus = BTN_SD;
-            else if (focus == BTN_POWER) focus = BTN_THEME;
+            else if (focus == BTN_MUSIC) focus = BTN_THEME;
+            else if (focus == BTN_POWER) focus = BTN_MUSIC;
             else if (focus == BTN_INPUTS) focus = BTN_POWER;
         } else if (dx > 0) {
             if (focus == BTN_SETTINGS) focus = BTN_SD;
             else if (focus == BTN_SD) focus = BTN_THEME;
-            else if (focus == BTN_THEME) focus = BTN_POWER;
+            else if (focus == BTN_THEME) focus = BTN_MUSIC;
+            else if (focus == BTN_MUSIC) focus = BTN_POWER;
             else if (focus == BTN_POWER) focus = BTN_INPUTS;
         }
         if (focus != before) {
@@ -844,6 +871,7 @@ public class WiiMenuView extends View {
         if (focus == BTN_SETTINGS) listener.onSettingsButton();
         else if (focus == BTN_SD) listener.onSdButton();
         else if (focus == BTN_THEME) listener.onThemeButton();
+        else if (focus == BTN_MUSIC) listener.onMusicButton();
         else if (focus == BTN_POWER) listener.onPowerButton();
         else if (focus == BTN_INPUTS) listener.onInputsButton();
         else if (focus >= 0 && focus < channels.size()) {
@@ -990,7 +1018,7 @@ public class WiiMenuView extends View {
         } else {
             on = slotAt(x, y);
             if (on < 0) on = Integer.MIN_VALUE;
-            for (int b = BTN_SETTINGS; on == Integer.MIN_VALUE && b >= BTN_POWER; b--) {
+            for (int b = BTN_SETTINGS; on == Integer.MIN_VALUE && b >= BTN_MUSIC; b--) {
                 if (under(b, x, y, 0f)) on = b;
             }
         }
@@ -1022,6 +1050,10 @@ public class WiiMenuView extends View {
         if (f == BTN_THEME) {
             float m = margin + SD_PAD;
             return x >= THEME_L - m && x <= THEME_R + m && y >= THEME_T - m && y <= THEME_B + m;
+        }
+        if (f == BTN_MUSIC) {
+            float m = margin + SD_PAD;
+            return x >= MUSIC_L - m && x <= MUSIC_R + m && y >= MUSIC_T - m && y <= MUSIC_B + m;
         }
         if (f == BTN_POWER) {
             float m = margin + SD_PAD;
@@ -1088,7 +1120,7 @@ public class WiiMenuView extends View {
             }
         }
         boolean button = slot == BTN_SETTINGS || slot == BTN_SD || slot == BTN_INPUTS
-                || slot == BTN_THEME || slot == BTN_POWER;
+                || slot == BTN_THEME || slot == BTN_POWER || slot == BTN_MUSIC;
         if (!button && (slot < 0 || slot >= pages * SLOTS_PER_PAGE)) return;
         focus = slot;
         page = button ? Math.max(0, Math.min(pg, pages - 1)) : slot / SLOTS_PER_PAGE;
@@ -1157,6 +1189,9 @@ public class WiiMenuView extends View {
         } else if (f == BTN_THEME) {
             out[0] = ((THEME_L + THEME_R) / 2f + 10f) * s;
             out[1] = ((THEME_T + THEME_B) / 2f + 14f) * s;
+        } else if (f == BTN_MUSIC) {
+            out[0] = ((MUSIC_L + MUSIC_R) / 2f + 10f) * s;
+            out[1] = ((MUSIC_T + MUSIC_B) / 2f + 14f) * s;
         } else if (f == BTN_POWER) {
             out[0] = ((POWER_L + POWER_R) / 2f + 10f) * s;
             out[1] = ((POWER_T + POWER_B) / 2f + 14f) * s;
@@ -1175,6 +1210,8 @@ public class WiiMenuView extends View {
             tmp.set(SD_L * s, SD_T * s, SD_R * s, SD_B * s);
         } else if (focus == BTN_THEME) {
             tmp.set(THEME_L * s, THEME_T * s, THEME_R * s, THEME_B * s);
+        } else if (focus == BTN_MUSIC) {
+            tmp.set(MUSIC_L * s, MUSIC_T * s, MUSIC_R * s, MUSIC_B * s);
         } else if (focus == BTN_POWER) {
             tmp.set(POWER_L * s, POWER_T * s, POWER_R * s, POWER_B * s);
         } else if (focus == BTN_SETTINGS || focus == BTN_INPUTS) {
@@ -1204,7 +1241,7 @@ public class WiiMenuView extends View {
                 Shader.TileMode.CLAMP);
         digitSegs = buildDigits(new CornerPathEffect(2.5f * s));
         hand.setScale(s);
-        sdRound = rounded(buildSd(), new CornerPathEffect(4f * s));
+
         warnRound = buildWarning();
         menuShaders = null;
         clockStale = true;
@@ -1405,17 +1442,6 @@ public class WiiMenuView extends View {
         return rounded(p, new CornerPathEffect(6f * s));
     }
 
-    private Path buildSd() {
-        float l = SD_L * s, t = SD_T * s, r = SD_R * s, b = SD_B * s, cut = 9f * s;
-        Path p = new Path();
-        p.moveTo(l, t);
-        p.lineTo(r - cut, t);
-        p.lineTo(r, t + cut);
-        p.lineTo(r, b);
-        p.lineTo(l, b);
-        p.close();
-        return p;
-    }
 
     // ---- animation -------------------------------------------------------------------------------
 
@@ -1617,6 +1643,11 @@ public class WiiMenuView extends View {
         float tcX = (THEME_L + THEME_R) / 2f * s, tcY = (THEME_T + THEME_B) / 2f * s;
         float thw = ((THEME_R - THEME_L) / 2f + 12f) * s * sct, thh = ((THEME_B - THEME_T) / 2f + 12f) * s * sct;
         add(IT_THEME, 0, tcX - thw, tcY - thh, tcX + thw, tcY + thh, settling(lft));
+        float lfm = lift[liftIndex(BTN_MUSIC)], scm = 1f + 0.08f * lfm;
+        float mcX = (MUSIC_L + MUSIC_R) / 2f * s, mcY = (MUSIC_T + MUSIC_B) / 2f * s;
+        float mhw = ((MUSIC_R - MUSIC_L) / 2f + 12f) * s * scm, mhh = ((MUSIC_B - MUSIC_T) / 2f + 12f) * s * scm;
+        add(IT_MUSIC, 0, mcX - mhw, mcY - mhh, mcX + mhw, mcY + mhh, settling(lfm));
+
         float lfp = lift[liftIndex(BTN_POWER)], scp = 1f + 0.08f * lfp;
         float pcX = (POWER_L + POWER_R) / 2f * s, pcY = (POWER_T + POWER_B) / 2f * s;
         float phw = ((POWER_R - POWER_L) / 2f + 12f) * s * scp, phh = ((POWER_B - POWER_T) / 2f + 12f) * s * scp;
@@ -1631,9 +1662,9 @@ public class WiiMenuView extends View {
             add(IT_AMPM, 0, (AMPM_X - 6f) * s, (AMPM_BASE - AMPM_CAP - 8f) * s, (AMPM_M_X + AMPM_M_W + 6f) * s,
                     (AMPM_BASE + 8f) * s, false);
         }
-        float half = dateTotal / 2f + 6f * s;
+        float half = Math.max(dateTotal, statsTotal) / 2f + 8f * s;
         add(IT_DATE, 0, WiiBase.CX * s - half, (DATE_BASE - DATE_CAP - 14f) * s, WiiBase.CX * s + half,
-                (DATE_BASE + 18f) * s, false);
+                (STATS_BASE + 20f) * s, false);
         // Carrying a channel, the hand closes on it; the argument tells the still layer it changed.
         hand.grabbing = carrying;
         hand.bounds(handX, handY, tmp);
@@ -1710,6 +1741,7 @@ public class WiiMenuView extends View {
         sig[n++] = page;
         sig[n++] = clockHour * 100 + clockMinute + (clockPm ? 10_000 : 0) + (clock24 ? 20_000 : 0) + (darkMode ? 40_000 : 0);
         sig[n++] = dateText.hashCode();
+        sig[n++] = statsText.hashCode();
         for (int i = 0; i < itemCount; i++) {
             if (itemDirect[i]) continue;
             int kind = itemKind[i];
@@ -1719,6 +1751,7 @@ public class WiiMenuView extends View {
             else if (kind == IT_BTN_R) sig[n++] = Float.floatToIntBits(lift[liftIndex(BTN_INPUTS)]);
             else if (kind == IT_SD) sig[n++] = Float.floatToIntBits(lift[liftIndex(BTN_SD)]);
             else if (kind == IT_THEME) sig[n++] = Float.floatToIntBits(lift[liftIndex(BTN_THEME)]);
+            else if (kind == IT_MUSIC) sig[n++] = Float.floatToIntBits(lift[liftIndex(BTN_MUSIC)]);
             else if (kind == IT_POWER) sig[n++] = Float.floatToIntBits(lift[liftIndex(BTN_POWER)]);
             else if (kind == IT_HAND) {
                 sig[n++] = Float.floatToIntBits(handX);
@@ -1764,6 +1797,9 @@ public class WiiMenuView extends View {
                 break;
             case IT_THEME:
                 drawThemeBtn(c);
+                break;
+            case IT_MUSIC:
+                drawMusicBtn(c);
                 break;
             case IT_POWER:
                 drawPowerBtn(c);
@@ -1960,32 +1996,67 @@ public class WiiMenuView extends View {
     private void drawSd(Canvas c) {
         float lf = lift[liftIndex(BTN_SD)];
         int save = c.save();
+        float cx = (SD_L + SD_R) / 2f * s, cy = (SD_T + SD_B) / 2f * s;
         float sc = 1f + 0.08f * lf;
-        c.scale(sc, sc, (SD_L + SD_R) / 2f * s, (SD_T + SD_B) / 2f * s);
+        c.scale(sc, sc, cx, cy);
+        RectF r = new RectF(SD_L * s, SD_T * s, SD_R * s, SD_B * s);
+        float rad = 14f * s;
+        // Shadow
         c.translate(4f * s, 4f * s);
         fill.setColor(0x2E000000);
-        c.drawPath(sdRound, fill);
+        c.drawRoundRect(r, rad, rad, fill);
         c.translate(-4f * s, -4f * s);
-        fill.setColor(0xFF5CC8EE);
-        c.drawPath(sdRound, fill);
-        fill.setColor(0xFFA9DDF3);
-        c.drawRect((SD_L + 4f) * s, (SD_T + 4f) * s, (SD_R - 10f) * s, 915f * s, fill);
-        fill.setColor(0xFFFFFFFF);
-        c.drawRect(366f * s, 915f * s, 422f * s, 975f * s, fill);
-        fill.setColor(0xFF4FC1EA);
-        c.drawRect(366f * s, 975f * s, 422f * s, 987f * s, fill);
+        // Body
+        int btnBg = darkMode ? 0xFF2B3240 : 0xFFE8ECF2;
+        fill.setColor(btnBg);
+        c.drawRoundRect(r, rad, rad, fill);
+        stroke.setColor(blend(darkMode ? 0xFF5A6578 : 0xFFA5B2C2, BLUE, lf));
+        stroke.setStrokeWidth(3f * s);
+        c.drawRoundRect(r, rad, rad, stroke);
         if (lf > 0.01f) {
             for (int k = 3; k >= 1; k--) {
                 stroke.setColor(withAlpha(BLUE, (int) (lf * 80 / k)));
                 stroke.setStrokeWidth((2f + k * 4f) * s);
-                c.drawPath(sdRound, stroke);
+                c.drawRoundRect(r, rad, rad, stroke);
             }
         }
+
+        // USB Flash Drive (Memoria USB) Icon
+        // 1. Metal USB plug connector (top)
+        int plugCol = darkMode ? 0xFFCCD5E0 : 0xFF7E8C9E;
+        fill.setColor(plugCol);
+        RectF plug = new RectF(cx - 8f * s, cy - 22f * s, cx + 8f * s, cy - 9f * s);
+        c.drawRoundRect(plug, 1.5f * s, 1.5f * s, fill);
+
+        // Holes in metal plug (Type-A connector holes)
+        fill.setColor(btnBg);
+        RectF holeL = new RectF(cx - 5.5f * s, cy - 18.5f * s, cx - 2f * s, cy - 14f * s);
+        c.drawRoundRect(holeL, 0.8f * s, 0.8f * s, fill);
+        RectF holeR = new RectF(cx + 2f * s, cy - 18.5f * s, cx + 5.5f * s, cy - 14f * s);
+        c.drawRoundRect(holeR, 0.8f * s, 0.8f * s, fill);
+
+        // 2. Drive Body (casing)
+        int bodyCol = darkMode ? 0xFF5CC8EE : 0xFF4FC1EA;
+        fill.setColor(bodyCol);
+        RectF body = new RectF(cx - 13f * s, cy - 9f * s, cx + 13f * s, cy + 22f * s);
+        c.drawRoundRect(body, 4f * s, 4f * s, fill);
+
+        // Lanyard loop / keyring cutout at the bottom
+        fill.setColor(btnBg);
+        RectF loop = new RectF(cx - 4.5f * s, cy + 15f * s, cx + 4.5f * s, cy + 18f * s);
+        c.drawRoundRect(loop, 1.5f * s, 1.5f * s, fill);
+
+        // 3. LED Indicator
+        fill.setColor(darkMode ? 0xFFE0F7FA : 0xFFFFFFFF);
+        c.drawCircle(cx, cy - 3.5f * s, 1.6f * s, fill);
+
+        // 4. "USB" text label on body
         text.setTypeface(sdFace);
-        text.setTextSize(24f * s);
+        text.setTextSize(9.5f * s);
         text.setTextAlign(Paint.Align.CENTER);
-        text.setColor(0xFF59BDE8);
-        c.drawText("SD", 393f * s, 953f * s, text);
+        text.setColor(darkMode ? 0xFF142638 : 0xFF0D253A);
+        c.drawText("USB", cx, cy + 6f * s, text);
+
         c.restoreToCount(save);
     }
 
@@ -2035,6 +2106,72 @@ public class WiiMenuView extends View {
             fill.setColor(0xFF4C5B75);
             c.drawPath(moon, fill);
         }
+        c.restoreToCount(save);
+    }
+
+    private void drawMusicBtn(Canvas c) {
+        float lf = lift[liftIndex(BTN_MUSIC)];
+        int save = c.save();
+        float cx = (MUSIC_L + MUSIC_R) / 2f * s, cy = (MUSIC_T + MUSIC_B) / 2f * s;
+        float sc = 1f + 0.08f * lf;
+        c.scale(sc, sc, cx, cy);
+        RectF r = new RectF(MUSIC_L * s, MUSIC_T * s, MUSIC_R * s, MUSIC_B * s);
+        float rad = 14f * s;
+        // Shadow
+        c.translate(4f * s, 4f * s);
+        fill.setColor(0x2E000000);
+        c.drawRoundRect(r, rad, rad, fill);
+        c.translate(-4f * s, -4f * s);
+        // Body
+        fill.setColor(darkMode ? 0xFF2B3240 : 0xFFE8ECF2);
+        c.drawRoundRect(r, rad, rad, fill);
+        stroke.setColor(blend(darkMode ? 0xFF5A6578 : 0xFFA5B2C2, BLUE, lf));
+        stroke.setStrokeWidth(3f * s);
+        c.drawRoundRect(r, rad, rad, stroke);
+        if (lf > 0.01f) {
+            for (int k = 3; k >= 1; k--) {
+                stroke.setColor(withAlpha(BLUE, (int) (lf * 80 / k)));
+                stroke.setStrokeWidth((2f + k * 4f) * s);
+                c.drawRoundRect(r, rad, rad, stroke);
+            }
+        }
+        // Icon: Musical notes (beamed eighth notes)
+        int iconCol = musicMuted ? (darkMode ? 0xFF8892A0 : 0xFF9E9E9E) : (darkMode ? 0xFF5CC8EE : 0xFF4FC1EA);
+        fill.setColor(iconCol);
+        stroke.setColor(iconCol);
+        stroke.setStrokeWidth(2.6f * s);
+
+        // Note 1 (left)
+        c.save();
+        c.translate(cx - 7f * s, cy + 8f * s);
+        c.rotate(-22f);
+        RectF n1 = new RectF(-5f * s, -3.5f * s, 5f * s, 3.5f * s);
+        c.drawOval(n1, fill);
+        c.restore();
+
+        // Note 2 (right)
+        c.save();
+        c.translate(cx + 7f * s, cy + 4f * s);
+        c.rotate(-22f);
+        RectF n2 = new RectF(-5f * s, -3.5f * s, 5f * s, 3.5f * s);
+        c.drawOval(n2, fill);
+        c.restore();
+
+        // Stems
+        c.drawLine(cx - 3.5f * s, cy + 7f * s, cx - 3.5f * s, cy - 9f * s, stroke);
+        c.drawLine(cx + 10.5f * s, cy + 3f * s, cx + 10.5f * s, cy - 13f * s, stroke);
+
+        // Beam
+        stroke.setStrokeWidth(4.2f * s);
+        c.drawLine(cx - 4.5f * s, cy - 8f * s, cx + 11.5f * s, cy - 12f * s, stroke);
+
+        // If muted, draw diagonal slash
+        if (musicMuted) {
+            stroke.setColor(0xFFE53935);
+            stroke.setStrokeWidth(3f * s);
+            c.drawLine(cx - 12f * s, cy + 12f * s, cx + 14f * s, cy - 14f * s, stroke);
+        }
+
         c.restoreToCount(save);
     }
 
@@ -2112,11 +2249,79 @@ public class WiiMenuView extends View {
                 date = day + " " + now.get(Calendar.DAY_OF_MONTH) + " de " + month + " del " + now.get(Calendar.YEAR);
             }
         }
+        updateStats();
         if (!date.equals(dateText) || dateScale != s) {
             dateText = date;
             dateScale = s;
             measureDate();
         }
+    }
+
+    private static String formatBytes(long bytes) {
+        if (bytes <= 0) return "0 B";
+        if (bytes < 1024L * 1024L) {
+            return String.format(Locale.getDefault(), "%.0f KB", bytes / 1024.0);
+        } else if (bytes < 1024L * 1024L * 1024L) {
+            return String.format(Locale.getDefault(), "%.1f MB", bytes / (1024.0 * 1024.0));
+        } else {
+            return String.format(Locale.getDefault(), "%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0));
+        }
+    }
+
+    private void updateStats() {
+        long now = SystemClock.uptimeMillis();
+        if (now - lastStatsUpdateMs < 800L) return;
+        lastStatsUpdateMs = now;
+
+        long storageUsed = 0, storageFree = 0;
+        try {
+            File dataDir = Environment.getDataDirectory();
+            StatFs stat = new StatFs(dataDir.getPath());
+            long blockSize = stat.getBlockSizeLong();
+            long total = stat.getBlockCountLong() * blockSize;
+            storageFree = stat.getAvailableBlocksLong() * blockSize;
+            storageUsed = Math.max(0, total - storageFree);
+        } catch (Throwable ignored) {}
+
+        long ramUsed = 0, ramFree = 0;
+        try {
+            ActivityManager am = (ActivityManager) getContext().getSystemService(Context.ACTIVITY_SERVICE);
+            if (am != null) {
+                ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+                am.getMemoryInfo(mi);
+                ramFree = mi.availMem;
+                ramUsed = Math.max(0, mi.totalMem - mi.availMem);
+            }
+        } catch (Throwable ignored) {}
+
+        String newStats = "Almacenamiento: " + formatBytes(storageUsed) + " ocupado / " + formatBytes(storageFree)
+                + " libre   •   RAM: " + formatBytes(ramUsed) + " ocupado / " + formatBytes(ramFree) + " libre";
+
+        if (!newStats.equals(statsText)) {
+            statsText = newStats;
+            measureStats();
+        }
+    }
+
+    private void statsFont() {
+        text.setTypeface(sansBold);
+        text.setTextSize(18f * s);
+        text.setTextAlign(Paint.Align.CENTER);
+        text.setColor(darkMode ? 0xFF8E99A8 : 0xFF8E8E8E);
+        text.setLetterSpacing(0.01f);
+        if (statsText != null && !statsText.isEmpty()) {
+            float wText = text.measureText(statsText);
+            float maxW = 820f * s;
+            if (wText > maxW && wText > 0f) {
+                text.setTextSize((18f * s) * (maxW / wText));
+            }
+        }
+    }
+
+    private void measureStats() {
+        statsFont();
+        statsTotal = text.measureText(statsText);
+        text.setLetterSpacing(0f);
     }
 
     private void dateFont() {
@@ -2192,6 +2397,12 @@ public class WiiMenuView extends View {
         if (!dateDay.isEmpty()) c.drawText(dateDay, x, DATE_BASE * s, text);
         c.drawText(dateRest, x + dateTotal - dateRestW, DATE_BASE * s, text);
         text.setLetterSpacing(0f);
+
+        if (statsText != null && !statsText.isEmpty()) {
+            statsFont();
+            c.drawText(statsText, WiiBase.CX * s, STATS_BASE * s, text);
+            text.setLetterSpacing(0f);
+        }
     }
 
     private void drawMenu(Canvas c) {
@@ -2201,11 +2412,14 @@ public class WiiMenuView extends View {
         c.drawRect(0, 0, w, h, fill);
         int n = menuItems.size();
         float pw = 1000f * s, itemH = 92f * s, gap = 22f * s, head = 150f * s, pad = 56f * s;
-        float ph = head + n * itemH + (n - 1) * gap + pad;
-        float px = (w - pw) / 2f, py = (h - ph) / 2f;
+        float totalItemsH = n * itemH + (n - 1) * gap;
+        float ph = head + totalItemsH + pad;
+        float maxPh = h - 80f * s;
+        float actualPh = Math.min(ph, maxPh);
+        float px = (w - pw) / 2f, py = (h - actualPh) / 2f;
         c.translate(0f, (1f - menuAlpha) * 36f * s);
         float rad = 40f * s;
-        rect.set(px, py, px + pw, py + ph);
+        rect.set(px, py, px + pw, py + actualPh);
         if (base != null) {
             fill.setColor(0xFFFFFFFF);
             fill.setShader(baseShader);
@@ -2228,6 +2442,16 @@ public class WiiMenuView extends View {
 
         text.setTextSize(40f * s);
         if (menuShaders == null || menuShaders.length != n) menuShaders = new LinearGradient[n];
+        float viewTop = py + head - 12f * s;
+        float viewBottom = py + actualPh - pad / 2f;
+        float viewH = viewBottom - viewTop;
+        float maxScroll = Math.max(0f, totalItemsH - viewH + 20f * s);
+        float idealScroll = (menuFocus * (itemH + gap)) - (viewH / 2f) + (itemH / 2f);
+        float scroll = Math.max(0f, Math.min(maxScroll, idealScroll));
+
+        int saveItems = c.save();
+        c.clipRect(px, viewTop, px + pw, viewBottom);
+        c.translate(0f, -scroll);
         for (int i = 0; i < n; i++) {
             float iy = py + head + i * (itemH + gap);
             tmp.set(px + 90f * s, iy, px + pw - 90f * s, iy + itemH);
@@ -2258,6 +2482,7 @@ public class WiiMenuView extends View {
                     TextUtils.TruncateAt.END);
             c.drawText(label, 0, label.length(), tmp.centerX(), tmp.centerY() + 14f * s, text);
         }
+        c.restoreToCount(saveItems);
         c.restoreToCount(save);
     }
 

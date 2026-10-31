@@ -5,8 +5,6 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.KeyEvent;
 import android.widget.Toast;
 
@@ -17,7 +15,6 @@ public class GamesActivity extends Activity implements GamesView.Host {
     private WiiSounds sounds;
     /** A phone as the remote: its buttons press the remote's keys here. */
     private Wiimote wiimote;
-    private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,7 +47,6 @@ public class GamesActivity extends Activity implements GamesView.Host {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        handler.removeCallbacksAndMessages(null);
         sounds.release();
         wiimote.release();
     }
@@ -72,17 +68,11 @@ public class GamesActivity extends Activity implements GamesView.Host {
         String pkg = RetroArch.installed(getPackageManager());
         if (pkg == null) return fail();
         try {
+            RetroArch.close(this, pkg);
             final Intent intent = RetroArch.play(this, pkg, game);
             startActivity(intent);
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
             RetroArch.remember(this, game.rom);
-            handler.postDelayed(() -> {
-                try {
-                    startActivity(intent);
-                } catch (RuntimeException ignored) {
-                    // RetroArch went away in between; the channel is back on screen to try again.
-                }
-            }, RetroArch.ASK_AGAIN_MS);
             return true;
         } catch (PackageManager.NameNotFoundException | ActivityNotFoundException | SecurityException e) {
             return fail();
@@ -95,6 +85,8 @@ public class GamesActivity extends Activity implements GamesView.Host {
         Intent intent = pkg == null ? null : RetroArch.menu(this, pkg);
         if (intent == null) return fail();
         try {
+            RetroArch.close(this, pkg);
+            RetroArch.forget(this);
             startActivity(intent);
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
             return true;
