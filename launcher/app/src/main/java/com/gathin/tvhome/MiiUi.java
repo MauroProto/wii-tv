@@ -135,6 +135,8 @@ final class MiiUi {
     private final LinearGradient[] gradients = new LinearGradient[GRADIENTS];
     private final int[] gradientColors = new int[GRADIENTS * 2];
     private final float[] gradientEnds = new float[GRADIENTS * 2];
+    /** What darkPanel and darkPill draw into, in screen px, so they make no rectangles of their own each frame. */
+    private final RectF panelBody = new RectF(), panelRim = new RectF(), panelBar = new RectF(), pillBody = new RectF();
 
     MiiUi(Typeface bold, Typeface regular) {
         this.bold = bold;
@@ -599,7 +601,8 @@ final class MiiUi {
         int save = c.save();
         c.scale(sc, sc, r.centerX(), r.centerY());
         float rad = r.height() / 2f;
-        RectF rr = new RectF(r);
+        RectF rr = pillBody;
+        rr.set(r);
         box(c, rr, rad, 0xFF8A9C9C, 0xFF566767, 0xFFE8F0F0, 4f * s);
         glow(c, rr, rad, lift);
         icon(c, icon, rr.centerX(), rr.centerY(), rr.height() * 0.5f, true);
@@ -679,7 +682,8 @@ final class MiiUi {
     /** The dark panel of the dialogs with its title bar; r in screen px. */
     void darkPanel(Canvas c, RectF r, String title) {
         float rad = 38f * s;
-        RectF pr = new RectF(r);
+        RectF pr = panelBody;
+        pr.set(r);
         fill.setColor(0x50000000);
         pr.offset(0, 10f * s);
         c.drawRoundRect(pr, rad, rad, fill);
@@ -687,10 +691,12 @@ final class MiiUi {
         box(c, pr, rad, 0xFF3A4749, 0xFF222C2E, 0xFFDCE4E4, 7f * s);
         stroke.setColor(0xFF131A1B);
         stroke.setStrokeWidth(2.5f * s);
-        RectF in = new RectF(pr);
+        RectF in = panelRim;
+        in.set(pr);
         in.inset(6f * s, 6f * s);
         c.drawRoundRect(in, rad * 0.85f, rad * 0.85f, stroke);
-        RectF bar = new RectF(pr.left + 26f * s, pr.top + 24f * s, pr.right - 26f * s, pr.top + 118f * s);
+        RectF bar = panelBar;
+        bar.set(pr.left + 26f * s, pr.top + 24f * s, pr.right - 26f * s, pr.top + 118f * s);
         box(c, bar, 26f * s, 0xFF526163, 0xFF3F4C4E, 0xFF2A3537, 3f * s);
         label(c, title, pr.centerX() / s, (bar.centerY() / s) + 16f, 46f, 0xFF6FE3D2, Paint.Align.CENTER, true);
     }
@@ -727,6 +733,8 @@ final class MiiUi {
         private float appear;
         private final RectF panel = new RectF();
         private final RectF[] btn;
+        /** The panel and a button in screen px, filled in again on every frame. */
+        private final RectF panelPx = new RectF(), buttonPx = new RectF();
 
         Dialog(String title, String body, String[] buttons, int[] icons, int cancel, Choice choice) {
             this.title = title;
@@ -782,7 +790,8 @@ final class MiiUi {
         public void draw(Canvas c) {
             layoutIfNeeded();
             int save = dim(c, appear);
-            RectF pr = new RectF(sr(panel));
+            RectF pr = panelPx;
+            pr.set(sr(panel));
             darkPanel(c, pr, title);
             if (layout != null) {
                 int sv = c.save();
@@ -791,7 +800,8 @@ final class MiiUi {
                 c.restoreToCount(sv);
             }
             for (int i = 0; i < buttons.length; i++) {
-                RectF b = new RectF(sr(btn[i]));
+                RectF b = buttonPx;
+                b.set(sr(btn[i]));
                 float lf = lift[i], sc = 1f + 0.05f * lf;
                 int sv = c.save();
                 c.scale(sc, sc, b.centerX(), b.centerY());
