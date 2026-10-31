@@ -130,6 +130,12 @@ final class MiiUi {
     /** The original's interface sprites, when a pack brought them. */
     MiiUiSprites sprites;
 
+    /** Kept vertical gradients: most boxes stay put from frame to frame and can draw with the one they had. */
+    private static final int GRADIENTS = 64;
+    private final LinearGradient[] gradients = new LinearGradient[GRADIENTS];
+    private final int[] gradientColors = new int[GRADIENTS * 2];
+    private final float[] gradientEnds = new float[GRADIENTS * 2];
+
     MiiUi(Typeface bold, Typeface regular) {
         this.bold = bold;
         this.regular = regular;
@@ -213,9 +219,26 @@ final class MiiUi {
         c.drawRoundRect(r, rad, rad, stroke);
     }
 
+    /** A vertical gradient from top at y0 to bottom at y1, in screen px; the same one as last time when it can. */
+    LinearGradient gradient(float y0, float y1, int top, int bottom) {
+        int h = ((top * 31 + bottom) * 31 + Float.floatToIntBits(y0)) * 31 + Float.floatToIntBits(y1);
+        int i = (h ^ (h >>> 16)) & (GRADIENTS - 1);
+        LinearGradient g = gradients[i];
+        if (g == null || gradientColors[2 * i] != top || gradientColors[2 * i + 1] != bottom
+                || gradientEnds[2 * i] != y0 || gradientEnds[2 * i + 1] != y1) {
+            g = new LinearGradient(0, y0, 0, y1, top, bottom, Shader.TileMode.CLAMP);
+            gradients[i] = g;
+            gradientColors[2 * i] = top;
+            gradientColors[2 * i + 1] = bottom;
+            gradientEnds[2 * i] = y0;
+            gradientEnds[2 * i + 1] = y1;
+        }
+        return g;
+    }
+
     /** A rounded rect with a vertical gradient and an outline, all in screen px. */
     void box(Canvas c, RectF r, float rad, int top, int bottom, int outline, float outlineW) {
-        MiiArt.opaque(fill).setShader(new LinearGradient(0, r.top, 0, r.bottom, top, bottom, Shader.TileMode.CLAMP));
+        MiiArt.opaque(fill).setShader(gradient(r.top, r.bottom, top, bottom));
         c.drawRoundRect(r, rad, rad, fill);
         fill.setShader(null);
         if (outlineW > 0f) {
@@ -529,7 +552,7 @@ final class MiiUi {
         text.setColor(0xFFFFFFFF);
         c.drawText("?", cx, base, text);
         text.setStyle(Paint.Style.FILL);
-        MiiArt.opaque(text).setShader(new LinearGradient(0, cy - r, 0, cy + r, 0xFF95A6A6, 0xFF5D6E6E, Shader.TileMode.CLAMP));
+        MiiArt.opaque(text).setShader(gradient(cy - r, cy + r, 0xFF95A6A6, 0xFF5D6E6E));
         c.drawText("?", cx, base, text);
         text.setShader(null);
     }
