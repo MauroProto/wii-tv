@@ -9,6 +9,8 @@ Set TV_HOST to the TV's IP. Usage:
     tv.py --pull <remote> <local>
 """
 import os
+import shutil
+import subprocess
 import sys
 
 from adb_shell.adb_device import AdbDeviceTcp
@@ -24,8 +26,13 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):
         pass
 
-HOST = os.environ.get("TV_HOST")
-PORT = int(os.environ.get("TV_PORT", "5555"))
+raw_host = os.environ.get("TV_HOST")
+if raw_host and ":" in raw_host:
+    HOST, port_str = raw_host.rsplit(":", 1)
+    PORT = int(port_str)
+else:
+    HOST = raw_host
+    PORT = int(os.environ.get("TV_PORT", "5555"))
 if not HOST:
     sys.exit("Set TV_HOST to your TV's IP address, e.g.  TV_HOST=192.168.1.50 tools/tv.py --probe\n"
              "(find it under Settings → Network, or look for the TV in `arp -a`)")
@@ -65,10 +72,59 @@ def get_signer():
     return PythonRSASigner(pub, priv)
 
 
+def find_adb():
+    found = [os.environ.get("ADB"), shutil.which("adb")]
+    for v in ("ANDROID_HOME", "ANDROID_SDK_ROOT", "LOCALAPPDATA"):
+        val = os.environ.get(v)
+        if val:
+            found.append(os.path.join(val, "platform-tools", "adb"))
+            found.append(os.path.join(val, "platform-tools", "adb.exe"))
+            found.append(os.path.join(val, "Android", "Sdk", "platform-tools", "adb.exe"))
+    return next((p for p in found if p and os.path.isfile(p)), None)
+
+
+class AdbCliDevice:
+    def __init__(self, host, port, adb_path):
+        self.host = host
+        self.port = port
+        self.target = f"{host}:{port}"
+        self.adb = adb_path
+        self.max_chunk_size = 64 * 1024
+        subprocess.run([self.adb, "connect", self.target], capture_output=True, timeout=30)
+
+    def shell(self, cmd, read_timeout_s=120.0):
+        r = subprocess.run([self.adb, "-s", self.target, "shell", cmd], capture_output=True, timeout=read_timeout_s)
+        if r.returncode != 0 and (b"device offline" in r.stderr or b"not found" in r.stderr):
+            subprocess.run([self.adb, "connect", self.target], capture_output=True, timeout=10)
+            r = subprocess.run([self.adb, "-s", self.target, "shell", cmd], capture_output=True, timeout=read_timeout_s)
+        return r.stdout.decode("utf-8", errors="replace")
+
+    def push(self, local, remote, transport_timeout_s=300.0, read_timeout_s=300.0):
+        timeout = max(transport_timeout_s, read_timeout_s)
+        r = subprocess.run([self.adb, "-s", self.target, "push", local, remote], capture_output=True, timeout=timeout)
+        if r.returncode != 0:
+            raise RuntimeError(r.stderr.decode("utf-8", errors="replace"))
+
+    def pull(self, remote, local, transport_timeout_s=300.0, read_timeout_s=300.0):
+        timeout = max(transport_timeout_s, read_timeout_s)
+        r = subprocess.run([self.adb, "-s", self.target, "pull", remote, local], capture_output=True, timeout=timeout)
+        if r.returncode != 0:
+            raise RuntimeError(r.stderr.decode("utf-8", errors="replace"))
+
+    def close(self):
+        pass
+
+
 def connect(timeout=120):
-    dev = AdbDeviceTcp(HOST, PORT, default_transport_timeout_s=float(timeout))
-    dev.connect(rsa_keys=[get_signer()], transport_timeout_s=float(timeout), auth_timeout_s=timeout)
-    return dev
+    try:
+        dev = AdbDeviceTcp(HOST, PORT, default_transport_timeout_s=float(timeout))
+        dev.connect(rsa_keys=[get_signer()], transport_timeout_s=float(timeout), auth_timeout_s=timeout)
+        return dev
+    except Exception:
+        adb = find_adb()
+        if adb:
+            return AdbCliDevice(HOST, PORT, adb)
+        raise
 
 
 def main():

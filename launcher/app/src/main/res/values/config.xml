@@ -11,7 +11,13 @@
     <string-array name="dock_apps">
         <item>com.google.android.youtube.tv</item>
         <item>com.netflix.ninja</item>
-        <item>com.spotify.tv.android</item>
+        <item>org.smarttube.stable</item>
+        <item>com.disney.disneyplus</item>
+        <item>com.wbd.stream</item>
+        <item>com.apple.atve.androidtv.appletv</item>
+        <item>com.amazon.amazonvideo.livingroom</item>
+        <item>com.android.mgstv</item>
+        <item>knf.kuma.tv</item>
         <item>com.crunchyroll.crunchyroid</item>
     </string-array>
     <!-- With fewer dock_apps than columns (or a dock app that is not installed), the free dock slots take
@@ -22,6 +28,9 @@
     <!-- Apps never shown as tiles (e.g. the Live TV app, which the Inputs menu already covers). -->
     <string-array name="hidden_apps">
         <item>com.mediatek.wwtv.tvcenter</item>
+        <item>com.tcl.tv</item>
+        <item>com.tcl.ui_mediaCenter</item>
+        <item>com.spocky.projengmenu</item>
         <item>com.mitv.gallery</item>
         <item>org.droidtv.eum</item>
         <item>com.android.tv.settings</item>
@@ -30,7 +39,7 @@
     </string-array>
 
     <!-- The TV's Live TV / tuner app, offered at the end of the Inputs menu. Leave empty to omit. -->
-    <string name="live_tv_package" translatable="false">com.mediatek.wwtv.tvcenter</string>
+    <string name="live_tv_package" translatable="false">com.tcl.tv</string>
 
     <!-- Some TVs give their Live TV app no leanback entry point at all, so `live_tv_package` above
          resolves to nothing (TCL Android TV 9 on China-market sets is one). This action is then sent

@@ -21,6 +21,11 @@ def main():
     data = open(local, "rb").read()
     want = hashlib.md5(data).hexdigest()
     dev = tv.connect()
+    if isinstance(dev, tv.AdbCliDevice):
+        dev.push(local, remote)
+        print(f'pushed {local} -> {remote} directly via adb')
+        dev.close()
+        sys.exit(0)
     chunk = min(CHUNK, dev.max_chunk_size * 3 // 4 - 64)   # base64 of the chunk plus the echo must fit one payload
     chunk -= chunk % 3   # a multiple of 3, or each chunk ends in '=' padding mid-stream and base64 -d corrupts it
     tmp = remote + ".b64"

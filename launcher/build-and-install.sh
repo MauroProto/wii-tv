@@ -84,6 +84,10 @@ if ! printf '%s' "$START_OUT" | grep -qF 'Status: ok' || printf '%s' "$START_OUT
 fi
 printf '%s\n' \
   "pm grant com.gathin.tvhome android.permission.ACCESS_FINE_LOCATION 2>/dev/null; echo location-granted" \
+  "pm grant com.gathin.tvhome android.permission.READ_MEDIA_AUDIO 2>/dev/null; echo audio-granted" \
+  "pm grant com.gathin.tvhome android.permission.READ_MEDIA_VIDEO 2>/dev/null; echo video-granted" \
+  "pm grant com.gathin.tvhome android.permission.READ_EXTERNAL_STORAGE 2>/dev/null; echo storage-granted
+appops set com.gathin.tvhome MANAGE_EXTERNAL_STORAGE allow" \
   "cmd package compile -m speed -f com.gathin.tvhome" \
   "$DISABLE_STOCK" \
   "cmd package set-home-activity --user 0 com.gathin.tvhome/.WiiMenuActivity" \

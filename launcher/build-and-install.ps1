@@ -39,7 +39,7 @@ $py = '..\tools\venv\Scripts\python.exe'
 # can also be Android's chooser "android", the setup wizard, or another third-party launcher).
 $knownStock = @('com.google.android.tvlauncher', 'com.google.android.apps.tv.launcherx', 'com.google.android.leanbacklauncher', 'com.mitv.tvhome')
 if (-not $StockLauncher) {
-    $homePkg = & $py -I ..\tools\tv.py 'cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME' | Select-Object -Last 1
+    $homePkg = & $py -I ..\tools\tv.py 'cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME' | Where-Object { $_.Trim() } | Select-Object -Last 1
     if ($LASTEXITCODE -ne 0 -or -not $homePkg) { throw 'could not ask the TV which launcher owns Home; check -TvHost and the debugging prompt, or pass -StockLauncher <package>' }
     $homePkg = "$homePkg".Trim().Split('/')[0]
     if ($knownStock -contains $homePkg) { $StockLauncher = $homePkg }
@@ -74,6 +74,10 @@ Write-Host $start
 if ($start -notmatch 'Status: ok' -or $start -match '(?m)^Error') { throw "the new launcher did not start (see above); $StockLauncher was left enabled" }
 @(
     'pm grant com.gathin.tvhome android.permission.ACCESS_FINE_LOCATION 2>/dev/null; echo location-granted',
+    'pm grant com.gathin.tvhome android.permission.READ_MEDIA_AUDIO 2>/dev/null; echo audio-granted',
+    'pm grant com.gathin.tvhome android.permission.READ_MEDIA_VIDEO 2>/dev/null; echo video-granted',
+    'pm grant com.gathin.tvhome android.permission.READ_EXTERNAL_STORAGE 2>/dev/null; echo storage-granted',
+    'appops set com.gathin.tvhome MANAGE_EXTERNAL_STORAGE allow',
     'cmd package compile -m speed -f com.gathin.tvhome',
     $disableStock,
     'cmd package set-home-activity --user 0 com.gathin.tvhome/.WiiMenuActivity',
@@ -82,7 +86,7 @@ if ($start -notmatch 'Status: ok' -or $start -match '(?m)^Error') { throw "the n
 ) | & $py -I ..\tools\tv.py --batch
 # Order matters, see build-and-install.sh: start the new launcher, disable the stock one, set the
 # preference last, then check where Home ended up and put the stock launcher back if it is not ours.
-$homeNow = (& $py -I ..\tools\tv.py 'cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN' | Select-Object -Last 1).Trim()
+$homeNow = (& $py -I ..\tools\tv.py 'cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN' | Where-Object { $_.Trim() } | Select-Object -Last 1).Trim()
 if ($homeNow -notlike 'com.gathin.tvhome/*') {
     if ($StockLauncher -ne 'none') {
         & $py -I ..\tools\tv.py "pm enable --user 0 $StockLauncher" | Out-Null

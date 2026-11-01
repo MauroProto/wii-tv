@@ -20,6 +20,14 @@ import java.util.Map;
  */
 public class HomeKeyService extends AccessibilityService {
 
+    private static volatile HomeKeyService instance;
+
+    /** Opens Android's native system Power Menu dialog if this AccessibilityService is active. */
+    static boolean showPowerDialog() {
+        HomeKeyService svc = instance;
+        return svc != null && svc.performGlobalAction(GLOBAL_ACTION_POWER_DIALOG);
+    }
+
     /** Remote buttons that should open Settings (config.xml, settings_key_scancodes and settings_key_keycodes). */
     private int[] settingsScancodes = new int[0];
     private int[] settingsKeycodes = new int[0];
@@ -30,12 +38,19 @@ public class HomeKeyService extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
+        instance = this;
         settingsScancodes = getResources().getIntArray(R.array.settings_key_scancodes);
         // Keycodes and the panel choice can also come from a theme; theme.sh restarts this service.
         Config config = Config.load(this);
         settingsKeycodes = config.settingsKeycodes;
         settingsPanel = config.settingsKeyPanel;
         appKeys = RemoteKeys.parseAppKeys(config.appKeys);
+    }
+
+    @Override
+    public void onDestroy() {
+        if (instance == this) instance = null;
+        super.onDestroy();
     }
 
     private boolean isSettingsKey(KeyEvent event) {

@@ -8,6 +8,8 @@ import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import java.io.File;
+import java.io.FileInputStream;
 
 /** Local music, confined to the screen that owns it; no background service. */
 final class WiiMusic {
@@ -22,6 +24,7 @@ final class WiiMusic {
     private final AudioFocusRequest focus;
     private MediaPlayer player, jingle;
     private int resource;
+    private String customPath;
     private boolean failed;
     private final Runnable unavailable;
     private boolean resumed, focused, waiting, ducked;
@@ -56,16 +59,33 @@ final class WiiMusic {
     }
 
     void setTrack(int resource) {
-        if (resource == this.resource && !failed) return;
+        if (resource == this.resource && customPath == null && !failed && player != null) return;
         if (player != null) player.release();
         player = null;
         this.resource = resource;
+        this.customPath = null;
         failed = false;
-        if (resumed && focused && !waiting) play();
+        if (resumed) {
+            if (!focused) requestFocus();
+            if (focused && !waiting) play();
+        }
+    }
+
+    void setCustomTrack(String path) {
+        if (path != null && path.equals(this.customPath) && !failed && player != null) return;
+        if (player != null) player.release();
+        player = null;
+        this.customPath = path;
+        this.resource = 0;
+        failed = false;
+        if (resumed) {
+            if (!focused) requestFocus();
+            if (focused && !waiting) play();
+        }
     }
 
     boolean hasTrack() {
-        return !failed && resource != 0;
+        return (!failed && resource != 0) || (customPath != null && !customPath.isEmpty());
     }
 
     private final Runnable waitForQuiet = new Runnable() {
@@ -175,7 +195,23 @@ final class WiiMusic {
     private void prepareMusic() {
         if (player != null || !hasTrack()) return;
         try {
-            player = MediaPlayer.create(context, resource, attributes, 0);
+            if (customPath != null) {
+                File f = new File(customPath);
+                if (!f.exists() || !f.isFile()) {
+                    failed = true;
+                    unavailable.run();
+                    Log.w(TAG, "Custom music file does not exist: " + customPath);
+                    return;
+                }
+                player = new MediaPlayer();
+                player.setAudioAttributes(attributes);
+                FileInputStream fis = new FileInputStream(f);
+                player.setDataSource(fis.getFD());
+                fis.close();
+                player.prepare();
+            } else {
+                player = MediaPlayer.create(context, resource, attributes, 0);
+            }
             if (player == null) {
                 failed = true;
                 unavailable.run();
@@ -190,12 +226,12 @@ final class WiiMusic {
                 return true;
             });
             volume();
-        } catch (RuntimeException error) {
+        } catch (Throwable error) {
             if (player != null) player.release();
             player = null;
             failed = true;
             unavailable.run();
-            Log.w(TAG, "Cannot load music", error);
+            Log.w(TAG, "Cannot load music: " + customPath, error);
         }
     }
 
@@ -204,7 +240,7 @@ final class WiiMusic {
         if (player == null) return;
         try {
             if (!player.isPlaying()) player.start();
-        } catch (RuntimeException error) {
+        } catch (Throwable error) {
             player.release();
             player = null;
             failed = true;
