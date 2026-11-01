@@ -290,6 +290,7 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
             public void onChannelClosed() {
                 playMenuMusic(false);
                 if (menu != null) {
+                    menu.refreshChannelArt();
                     menu.requestFocus();
                     menu.invalidate();
                 }
@@ -1334,6 +1335,35 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
 
         menu.setChannels(displayList);
         menu.useHandSprites(MiiUiSprites.from(MiiPack.peek()));
+        ensureThumbnailsForChannels(displayList);
+    }
+
+    private void ensureThumbnailsForChannels(List<WiiMenuView.Channel> list) {
+        new Thread(() -> {
+            boolean generatedAny = false;
+            for (WiiMenuView.Channel ch : list) {
+                if (ch == null || ch.key == null) continue;
+                String videoPath = WiiChannelCustomization.getCustomVideo(WiiMenuActivity.this, ch.key);
+                if (videoPath != null) {
+                    File videoFile = new File(videoPath);
+                    if (!videoFile.exists()) continue;
+                    File outFile = WiiThumbnailManager.getThumbnailFileForVideo(WiiMenuActivity.this, videoPath);
+                    if (outFile != null && (!outFile.exists() || outFile.length() == 0 || outFile.lastModified() < videoFile.lastModified())) {
+                        try {
+                            WiiThumbnailManager.generateThumbnail(WiiMenuActivity.this, videoPath, outFile, null);
+                            generatedAny = true;
+                        } catch (Throwable t) {
+                            // ignore background thumb error
+                        }
+                    }
+                }
+            }
+            if (generatedAny) {
+                mainHandler.post(() -> {
+                    if (menu != null) menu.refreshChannelArt();
+                });
+            }
+        }, "ThumbGenBackground").start();
     }
 
     private File orderFile() {

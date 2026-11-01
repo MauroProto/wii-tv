@@ -110,6 +110,11 @@ public class WiiChannelDetailOverlay extends FrameLayout {
     private int videoTargetL = 0;
     private int videoTargetT = 0;
 
+    // Thumbnail generation loading animation
+    private boolean isGeneratingThumbnail = false;
+    private float generatingSpinnerAngle = 0f;
+    private float generatingProgress = 0f;
+
     // Focus tracking
     // Channel mode: 0 = Gear (Config), 1 = Volver / Wii Menu, 2 = Iniciar / Start
     private int channelFocus = 2;
@@ -122,6 +127,8 @@ public class WiiChannelDetailOverlay extends FrameLayout {
 
     // Media
     private MediaPlayer channelVideoPlayer;
+    private boolean channelVideoPrepared = false;
+    private boolean channelVideoCompleted = false;
     private MediaPlayer carouselVideoPlayer;
 
     private List<File> videoFiles = new ArrayList<>();
@@ -167,9 +174,19 @@ public class WiiChannelDetailOverlay extends FrameLayout {
         videoTextureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+                if (channelSurface != null) {
+                    try {
+                        channelSurface.release();
+                    } catch (Throwable ignored) {}
+                }
                 channelSurface = new Surface(surface);
                 if (channelVideoPlayer != null) {
-                    channelVideoPlayer.setSurface(channelSurface);
+                    try {
+                        channelVideoPlayer.setSurface(channelSurface);
+                        if (channelVideoPrepared && !channelVideoCompleted) {
+                            channelVideoPlayer.start();
+                        }
+                    } catch (Throwable ignored) {}
                 }
             }
             @Override public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {}
@@ -568,7 +585,7 @@ public class WiiChannelDetailOverlay extends FrameLayout {
     // --- BULLETPROOF REMOTE CONTROL DPAD & WIIMOTE NAVIGATION ---
 
     public void pointerMove(float dx, float dy) {
-        if (!isOpen) return;
+        if (!isOpen || isGeneratingThumbnail) return;
         float w = getWidth() > 0 ? getWidth() : REF_W * scale;
         float h = getHeight() > 0 ? getHeight() : REF_H * scale;
         handX = Math.max(0f, Math.min(w, handX + dx * scale));
@@ -593,6 +610,7 @@ public class WiiChannelDetailOverlay extends FrameLayout {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (!isOpen) return false;
+        if (isGeneratingThumbnail) return true;
         handX = event.getX();
         handY = event.getY();
         int action = event.getAction();
@@ -644,6 +662,7 @@ public class WiiChannelDetailOverlay extends FrameLayout {
 
     public boolean handleKeyDown(int keyCode, KeyEvent event) {
         if (!isOpen) return false;
+        if (isGeneratingThumbnail) return true;
 
         // Never consume HOME or APP_SWITCH; let system/activity return to all apps!
         if (keyCode == KeyEvent.KEYCODE_HOME || keyCode == KeyEvent.KEYCODE_APP_SWITCH) {
@@ -929,20 +948,36 @@ public class WiiChannelDetailOverlay extends FrameLayout {
                     .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE).build());
             channelVideoPlayer.setDataSource(path);
-            channelVideoPlayer.setLooping(true);
+            channelVideoPlayer.setLooping(false);
             channelVideoPlayer.setOnVideoSizeChangedListener((mp, vw, vh) -> {
                 if (vw > 0 && vh > 0) {
                     adjustVideoWindowSize(vw, vh);
                 }
             });
             channelVideoPlayer.setOnPreparedListener(mp -> {
-                if (channelSurface != null && channelVideoPlayer != null) {
-                    channelVideoPlayer.setSurface(channelSurface);
-                    channelVideoPlayer.start();
+                channelVideoPrepared = true;
+                if (channelVideoPlayer != null) {
+                    if ((channelSurface == null || !channelSurface.isValid()) && videoTextureView.isAvailable()) {
+                        SurfaceTexture st = videoTextureView.getSurfaceTexture();
+                        if (st != null) {
+                            channelSurface = new Surface(st);
+                        }
+                    }
+                    if (channelSurface != null && channelSurface.isValid()) {
+                        channelVideoPlayer.setSurface(channelSurface);
+                    }
+                    try {
+                        channelVideoPlayer.start();
+                    } catch (Throwable ignored) {}
                 }
                 if (mp.getVideoWidth() > 0 && mp.getVideoHeight() > 0) {
                     adjustVideoWindowSize(mp.getVideoWidth(), mp.getVideoHeight());
                 }
+            });
+            channelVideoPlayer.setOnCompletionListener(mp -> {
+                channelVideoCompleted = true;
+                // Playback completed: keep player in PlaybackCompleted state so
+                // TextureView naturally holds and freezes on the final frame.
             });
             channelVideoPlayer.setOnErrorListener((mp, what, extra) -> true);
             channelVideoPlayer.prepareAsync();
@@ -952,6 +987,8 @@ public class WiiChannelDetailOverlay extends FrameLayout {
     }
 
     private void stopChannelVideo() {
+        channelVideoPrepared = false;
+        channelVideoCompleted = false;
         if (channelVideoPlayer != null) {
             try {
                 if (channelVideoPlayer.isPlaying()) channelVideoPlayer.stop();
@@ -997,11 +1034,55 @@ public class WiiChannelDetailOverlay extends FrameLayout {
     private void applyVideoSelection() {
         stopCarouselVideo();
         if (sounds != null) sounds.play(WiiSounds.SELECT);
-        if (currentChannel != null) {
-            WiiChannelCustomization.setCustomVideo(getContext(), currentChannel.key, selectedVideoPath);
+        if (currentChannel == null) {
+            switchToState(STATE_CHANNEL);
+            refreshMedia();
+            return;
         }
-        switchToState(STATE_CHANNEL);
-        refreshMedia();
+
+        if (selectedVideoPath == null || selectedVideoPath.isEmpty()) {
+            WiiChannelCustomization.setCustomVideo(getContext(), currentChannel.key, null);
+            switchToState(STATE_CHANNEL);
+            refreshMedia();
+            return;
+        }
+
+        File videoFile = new File(selectedVideoPath);
+        File thumbFile = WiiThumbnailManager.getThumbnailFileForVideo(getContext(), selectedVideoPath);
+        if (thumbFile != null && thumbFile.exists() && thumbFile.length() > 0 && thumbFile.lastModified() >= videoFile.lastModified()) {
+            // Ya existe la miniatura optimizada: aplicar directamente sin regenerar
+            WiiChannelCustomization.setCustomVideo(getContext(), currentChannel.key, selectedVideoPath);
+            switchToState(STATE_CHANNEL);
+            refreshMedia();
+            return;
+        }
+
+        // Mostrar animación de carga mientras se genera la miniatura WebP (480x270 @ 15 FPS)
+        isGeneratingThumbnail = true;
+        generatingSpinnerAngle = 0f;
+        generatingProgress = 0f;
+        invalidate();
+
+        final String videoToProcess = selectedVideoPath;
+        final String channelKeyToApply = currentChannel.key;
+        executor.execute(() -> {
+            try {
+                WiiThumbnailManager.generateThumbnail(getContext(), videoToProcess, thumbFile, fraction -> {
+                    mainHandler.post(() -> {
+                        generatingProgress = fraction;
+                        invalidate();
+                    });
+                });
+            } catch (Exception e) {
+                android.util.Log.e("WiiChannelDetailOverlay", "Error generating thumbnail for " + videoToProcess, e);
+            }
+            mainHandler.post(() -> {
+                isGeneratingThumbnail = false;
+                WiiChannelCustomization.setCustomVideo(getContext(), channelKeyToApply, videoToProcess);
+                switchToState(STATE_CHANNEL);
+                refreshMedia();
+            });
+        });
     }
 
     // --- DRAWING: STAGE BACKGROUND & APP ARTWORK IN onDraw ---
@@ -1059,9 +1140,68 @@ public class WiiChannelDetailOverlay extends FrameLayout {
         }
 
         // Draw the iconic Wii Hand cursor hovering over the selection
-        if (isOpen && zoomProgress > 0.4f) {
+        if (isOpen && zoomProgress > 0.4f && !isGeneratingThumbnail) {
             hand.draw(canvas, handX, handY);
         }
+
+        // Draw loading animation dialog if thumbnail is generating
+        if (isGeneratingThumbnail) {
+            drawGeneratingThumbnailDialog(canvas, w, h);
+        }
+    }
+
+    private void drawGeneratingThumbnailDialog(Canvas canvas, int w, int h) {
+        // Dimmed backdrop
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(0xB0000000);
+        canvas.drawRect(0, 0, w, h, paint);
+
+        float cardW = 560f * scale;
+        float cardH = 260f * scale;
+        float cx = w / 2f;
+        float cy = h / 2f;
+        RectF cardRect = new RectF(cx - cardW / 2f, cy - cardH / 2f, cx + cardW / 2f, cy + cardH / 2f);
+
+        // Card background (acrylic glass style)
+        paint.setColor(darkMode ? 0xF020242C : 0xF0FFFFFF);
+        canvas.drawRoundRect(cardRect, 18f * scale, 18f * scale, paint);
+
+        // Card border
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(2.5f * scale);
+        paint.setColor(darkMode ? 0xFF454E5F : 0xFFD0D7E2);
+        canvas.drawRoundRect(cardRect, 18f * scale, 18f * scale, paint);
+
+        // Spinner circle
+        float spinnerR = 34f * scale;
+        float spinnerCy = cy - 35f * scale;
+        RectF spinnerRect = new RectF(cx - spinnerR, spinnerCy - spinnerR, cx + spinnerR, spinnerCy + spinnerR);
+
+        // Spinner track
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(4.5f * scale);
+        paint.setColor(darkMode ? 0x30FFFFFF : 0x20000000);
+        canvas.drawCircle(cx, spinnerCy, spinnerR, paint);
+
+        // Spinner arc (Wii bright blue)
+        paint.setColor(BLUE_GLOW);
+        canvas.drawArc(spinnerRect, generatingSpinnerAngle, 260f, false, paint);
+        generatingSpinnerAngle = (generatingSpinnerAngle + 8f) % 360f;
+
+        // Texts
+        textPaint.setTextAlign(Paint.Align.CENTER);
+        textPaint.setTypeface(Typeface.DEFAULT_BOLD);
+        textPaint.setColor(darkMode ? 0xFFFFFFFF : 0xFF2A2A2A);
+        textPaint.setTextSize(24f * scale);
+        canvas.drawText("Generando miniatura animada...", cx, cy + 45f * scale, textPaint);
+
+        textPaint.setTypeface(Typeface.DEFAULT);
+        textPaint.setColor(darkMode ? 0xFF9EABB9 : 0xFF707782);
+        textPaint.setTextSize(18f * scale);
+        String sub = "WebP optimizado 480x270 @ 15 FPS (" + Math.round(generatingProgress * 100f) + "%)";
+        canvas.drawText(sub, cx, cy + 80f * scale, textPaint);
+
+        postInvalidateOnAnimation();
     }
 
     /**
@@ -1239,7 +1379,7 @@ public class WiiChannelDetailOverlay extends FrameLayout {
 
         // Button 2: "Start" / "Iniciar" (Pill, on the right)
         float startX = 1400f * scale;
-        drawWiiBubblePill(canvas, startX, btnY, btnW, btnH, "Start", channelFocus == 2);
+        drawWiiBubblePill(canvas, startX, btnY, btnW, btnH, "Iniciar", channelFocus == 2);
     }
 
     private void drawWiiBubblePill(Canvas canvas, float cx, float cy, float bw, float bh, String label, boolean focused) {

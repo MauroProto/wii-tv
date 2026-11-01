@@ -23,6 +23,7 @@ public final class WiiChannelCustomization {
 
     public static final String PRIMARY_MEDIA_ROOT = "/storage/emulated/0/wiimedia";
     public static final String VIDEOS_DIR_NAME = "videos";
+    public static final String MINIATURAS_DIR_NAME = "miniaturas";
 
     private WiiChannelCustomization() {}
 
@@ -41,6 +42,47 @@ public final class WiiChannelCustomization {
             }
         }
         return dir;
+    }
+
+    /**
+     * Returns the directory for thumbnail files (/storage/emulated/0/wiimedia/videos/miniaturas/).
+     * Ensures parent folders exist.
+     */
+    public static File getThumbnailsDir() {
+        File dir = new File(getVideosDir(), MINIATURAS_DIR_NAME);
+        if (!dir.exists()) {
+            boolean created = dir.mkdirs();
+            if (!created) {
+                File fallback = new File(Environment.getExternalStorageDirectory(), "wiimedia/" + VIDEOS_DIR_NAME + "/" + MINIATURAS_DIR_NAME);
+                if (!fallback.exists()) fallback.mkdirs();
+                return fallback;
+            }
+        }
+        return dir;
+    }
+
+    /**
+     * Resolves the thumbnail file for a source MP4 video:
+     * e.g., /path/to/myvideo.mp4 -> /storage/emulated/0/wiimedia/videos/miniaturas/myvideo_min.webp
+     */
+    public static File getThumbnailFileForVideo(String videoPath) {
+        if (videoPath == null || videoPath.trim().isEmpty()) return null;
+        File v = new File(videoPath);
+        String name = v.getName();
+        int dot = name.lastIndexOf('.');
+        String baseName = (dot > 0) ? name.substring(0, dot) : name;
+        return new File(getThumbnailsDir(), baseName + "_min.webp");
+    }
+
+    public static File getThumbnailFile(Context context, String channelKey) {
+        String videoPath = getCustomVideo(context, channelKey);
+        if (videoPath == null) return null;
+        return WiiThumbnailManager.getThumbnailFileForVideo(context, videoPath);
+    }
+
+    public static boolean hasThumbnail(Context context, String channelKey) {
+        File f = getThumbnailFile(context, channelKey);
+        return f != null && f.exists() && f.length() > 0;
     }
 
     /**

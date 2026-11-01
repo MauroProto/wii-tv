@@ -19,6 +19,7 @@ import android.graphics.RectF;
 import android.graphics.RenderNode;
 import android.graphics.Shader;
 import android.graphics.Typeface;
+import android.graphics.drawable.Animatable;
 import android.graphics.drawable.Drawable;
 import android.graphics.fonts.Font;
 import android.graphics.fonts.FontFamily;
@@ -348,19 +349,128 @@ public class WiiMenuView extends View {
                 && focus >= 0 && focus < channels.size()) sound(WiiSounds.WOOP);
     };
 
+    // Animated thumbnail preview
+    private static final long THUMBNAIL_HOVER_DELAY_MS = 300L;
+    private int thumbActiveSlot = -1;
+    private Drawable thumbActiveDrawable = null;
+    private boolean thumbIsPlaying = false;
+    private final RectF thumbIconDst = new RectF();
+    private final Path thumbClipPath = new Path();
+    private final Paint thumbBorderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    private final Runnable thumbStartRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!started || refPose || isIntroShowing() || menuOpen || carrying) {
+                return;
+            }
+            if (focus < 0 || focus >= channels.size()) return;
+            startThumbnailPlayback(focus);
+        }
+    };
+
+    private void startThumbnailPlayback(int slot) {
+        if (slot < 0 || slot >= channels.size()) return;
+        Channel ch = channels.get(slot);
+        if (ch == null) return;
+        if (!WiiThumbnailManager.hasThumbnail(getContext(), ch.key)) return;
+
+        stopThumbnailPlayback(false);
+
+        Drawable d = WiiThumbnailManager.loadAnimatedDrawable(getContext(), ch.key);
+        if (d != null) {
+            thumbActiveDrawable = d;
+            thumbActiveSlot = slot;
+            thumbIsPlaying = true;
+            d.setCallback(this);
+            if (d instanceof Animatable) {
+                ((Animatable) d).start();
+            }
+            stillGen++;
+            invalidate();
+        }
+    }
+
+    private void stopThumbnailPlayback(boolean invalidate) {
+        removeCallbacks(thumbStartRunnable);
+        if (thumbActiveDrawable != null) {
+            if (thumbActiveDrawable instanceof Animatable) {
+                ((Animatable) thumbActiveDrawable).stop();
+            }
+            thumbActiveDrawable.setCallback(null);
+            thumbActiveDrawable = null;
+        }
+        int oldSlot = thumbActiveSlot;
+        thumbActiveSlot = -1;
+        thumbIsPlaying = false;
+        if (invalidate && oldSlot >= 0) {
+            stillGen++;
+            invalidate();
+        }
+    }
+
+    private void onFocusChangedForThumbnail(int newFocus) {
+        removeCallbacks(thumbStartRunnable);
+        if (thumbIsPlaying && thumbActiveSlot != newFocus) {
+            stopThumbnailPlayback(true);
+        }
+        if (newFocus >= 0 && newFocus < channels.size()) {
+            Channel ch = channels.get(newFocus);
+            if (ch != null && WiiThumbnailManager.hasThumbnail(getContext(), ch.key)) {
+                postDelayed(thumbStartRunnable, THUMBNAIL_HOVER_DELAY_MS);
+            }
+        }
+    }
+
+    public void refreshChannelArt() {
+        stopThumbnailPlayback(false);
+        WiiThumbnailManager.clearCache();
+        for (Channel ch : channels) {
+            ch.art = null;
+            ch.shader = null;
+        }
+        stillGen++;
+        invalidate();
+    }
+
+    @Override
+    public void invalidateDrawable(Drawable who) {
+        if (who == thumbActiveDrawable) {
+            invalidate();
+            return;
+        }
+        super.invalidateDrawable(who);
+    }
+
+    @Override
+    protected boolean verifyDrawable(Drawable who) {
+        return who == thumbActiveDrawable || super.verifyDrawable(who);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        stopThumbnailPlayback(false);
+    }
+
     private void scheduleHoverSound() {
         removeCallbacks(hoverSound);
         int delay = getResources().getInteger(R.integer.wii_hover_delay_ms);
         if (delay > 0 && started && !refPose && !isIntroShowing() && !menuOpen
                 && !carrying && !okHeld
                 && focus >= 0 && focus < channels.size()) postDelayed(hoverSound, delay);
+        onFocusChangedForThumbnail(focus);
     }
 
     @Override
     public void onWindowFocusChanged(boolean hasWindowFocus) {
         super.onWindowFocusChanged(hasWindowFocus);
-        if (hasWindowFocus) scheduleHoverSound();
-        else removeCallbacks(hoverSound);
+        if (hasWindowFocus) {
+            scheduleHoverSound();
+        } else {
+            removeCallbacks(hoverSound);
+            stopThumbnailPlayback(true);
+        }
     }
     private final Runnable okHeldLong = this::pickUp;
 
@@ -540,6 +650,7 @@ public class WiiMenuView extends View {
     }
 
     void setChannels(List<Channel> list) {
+        stopThumbnailPlayback(false);
         // An app installed or removed mid-carry: the new list wins, the carry so far is dropped unsaved.
         carrying = false;
         okHeld = false;
@@ -1692,7 +1803,8 @@ public class WiiMenuView extends View {
     /** Adds the tile whose box slotRect just put in rect. */
     private void addTile(int sl, boolean scrolling) {
         Channel ch = sl < channels.size() ? channels.get(sl) : null;
-        boolean live = ch != null && ch.banner instanceof LiveArt && ((LiveArt) ch.banner).animating();
+        boolean isThumbLive = (sl == thumbActiveSlot && thumbIsPlaying && thumbActiveDrawable != null);
+        boolean live = (ch != null && ch.banner instanceof LiveArt && ((LiveArt) ch.banner).animating()) || isThumbLive;
         liveShown |= live;
         float lf = lift[sl];
         // How far the bulge, border and glow reach past the box; neighbouring tiles' reaches never meet.
@@ -1851,7 +1963,7 @@ public class WiiMenuView extends View {
             c.scale(hdmiAppearScale, hdmiAppearScale, r.width() / 2f, r.height() / 2f);
         }
         Channel ch = slot < channels.size() ? channels.get(slot) : null;
-        if (live && ch != null) {
+        if (live && ch != null && ch.banner instanceof LiveArt) {
             // Straight into the frame: a tile bitmap redrawn every frame flickers on the TV, as the render thread
             // can still be reading it while the next frame paints it over. Trimmed by painting the backdrop (all
             // that lies under a tile) back around the frame rather than by clipPath: under a clip this shape,
@@ -1882,6 +1994,9 @@ public class WiiMenuView extends View {
             artPaint.setShader(ch.shader);
             c.drawPath(tilePath, artPaint);
             artPaint.setShader(null);
+            if (slot == thumbActiveSlot && thumbIsPlaying && thumbActiveDrawable != null) {
+                drawActiveThumbnail(c, Math.round(r.width()), Math.round(r.height()));
+            }
         } else if (emptyShader != null) {
             matrix.setTranslate(-4f, -4f);
             emptyShader.setLocalMatrix(matrix);
@@ -1917,6 +2032,25 @@ public class WiiMenuView extends View {
         c.restoreToCount(save);
     }
 
+    private void drawActiveThumbnail(Canvas c, int tw, int th) {
+        if (thumbActiveDrawable == null) return;
+        int iw = thumbActiveDrawable.getIntrinsicWidth();
+        int ih = thumbActiveDrawable.getIntrinsicHeight();
+        if (iw <= 0) iw = WiiThumbnailManager.THUMB_WIDTH;
+        if (ih <= 0) ih = WiiThumbnailManager.THUMB_HEIGHT;
+        float sc = Math.max(tw / (float) iw, th / (float) ih);
+        int dw = Math.round(iw * sc);
+        int dh = Math.round(ih * sc);
+        int dx = (tw - dw) / 2;
+        int dy = (th - dh) / 2;
+
+        int save = c.save();
+        c.clipPath(tilePath);
+        thumbActiveDrawable.setBounds(dx, dy, dx + dw, dy + dh);
+        thumbActiveDrawable.draw(c);
+        c.restoreToCount(save);
+    }
+
     private void ensureArt(Channel ch, int tw, int th) {
         tw = Math.max(1, tw);
         th = Math.max(1, th);
@@ -1924,7 +2058,22 @@ public class WiiMenuView extends View {
         Bitmap bmp = Bitmap.createBitmap(tw, th, Bitmap.Config.ARGB_8888);
         Canvas cv = new Canvas(bmp);
         cv.drawColor(darkMode ? 0xFF242830 : 0xFFFFFFFF);
-        if (ch.banner != null) {
+        boolean hasThumb = WiiThumbnailManager.hasThumbnail(getContext(), ch.key);
+        if (hasThumb) {
+            Bitmap firstFrame = WiiThumbnailManager.getFirstFrame(getContext(), ch.key);
+            if (firstFrame != null && !firstFrame.isRecycled()) {
+                int iw = firstFrame.getWidth();
+                int ih = firstFrame.getHeight();
+                float sc = Math.max(tw / (float) iw, th / (float) ih);
+                int dw = Math.round(iw * sc);
+                int dh = Math.round(ih * sc);
+                int dx = (tw - dw) / 2;
+                int dy = (th - dh) / 2;
+                cv.drawBitmap(firstFrame, null, new RectF(dx, dy, dx + dw, dy + dh), bmpPaint);
+            } else {
+                cv.drawColor(darkMode ? 0xFF242830 : 0xFFFFFFFF);
+            }
+        } else if (ch.banner != null) {
             drawCropped(cv, ch.banner, tw, th);
         } else {
             Paint bg = new Paint();
