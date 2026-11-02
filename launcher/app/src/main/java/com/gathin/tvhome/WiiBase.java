@@ -113,6 +113,10 @@ final class WiiBase {
     }
 
     static int[] backdrop(int w, int h) {
+        return backdrop(w, h, false);
+    }
+
+    static int[] backdrop(int w, int h, boolean dark) {
         float s = w / 1920f;
         int[] out = new int[w * h];
         float[] colLine = new float[w], colCos = new float[w], colBase = new float[w], colAmp = new float[w];
@@ -148,13 +152,25 @@ final class WiiBase {
                 if (dp < 0f) {
                     float hd = dp - HIGHLIGHT_D;
                     float v = colBase[x] + colAmp[x] * k + HIGHLIGHT_AMP * (float) Math.exp(-hd * hd / (2f * HIGHLIGHT_SIGMA * HIGHLIGHT_SIGMA));
-                    r = g = b = v;
+                    if (dark) {
+                        float dv = 24f + (v - 200f) * 0.42f;
+                        r = dv - 2f;
+                        g = dv;
+                        b = dv + 5f;
+                    } else {
+                        r = g = b = v;
+                    }
                 } else {
                     int c = panel(colXm[x], dY);
                     float dl = socketDelta(colXm[x], ry, colRight[x]);
                     r = ((c >> 16) & 255) + dl;
                     g = ((c >> 8) & 255) + dl;
                     b = (c & 255) + dl;
+                    if (dark) {
+                        r = 20f + (r - 160f) * 0.35f;
+                        g = 23f + (g - 160f) * 0.36f;
+                        b = 29f + (b - 160f) * 0.38f;
+                    }
                 }
                 float cov = clamp01((LINE_HALF - Math.abs(dp)) * s + 0.5f);
                 if (cov > 0f) {
@@ -168,11 +184,15 @@ final class WiiBase {
         return out;
     }
 
+    static int[] button(int size, float s) {
+        return button(size, s, false);
+    }
+
     /**
      * One round button's body and blue ring, centred in a size x size square (size in screen px), transparent
      * outside the ring. Lit from the upper left with a soft gloss, as both buttons are.
      */
-    static int[] button(int size, float s) {
+    static int[] button(int size, float s, boolean dark) {
         int[] out = new int[size * size];
         float c = size / 2f;
         for (int y = 0; y < size; y++) {
@@ -187,7 +207,17 @@ final class WiiBase {
                 float v = k[0] + k[1] * nx + k[2] * ny + k[3] * nx * nx + k[4] * ny * ny + k[5] * nx * ny
                         + k[6] * nx * nx * nx + k[7] * ny * ny * ny + k[8] * nx * nx * ny + k[9] * nx * ny * ny
                         + k[10] * r2 * r2 + k[11] * r2 * r2 * r2;
-                float cr = v, cg = v, cb = v;
+                float cr, cg, cb;
+                if (dark) {
+                    float dv = 46f + (v - 200f) * 0.55f;
+                    cr = dv - 2f;
+                    cg = dv + 1f;
+                    cb = dv + 6f;
+                } else {
+                    cr = v;
+                    cg = v;
+                    cb = v;
+                }
                 float ring = clamp01((BTN_RING_HALF - Math.abs(r - BTN_RING)) * s + 0.5f);
                 cr += (0x4D - cr) * ring;
                 cg += (0xBD - cg) * ring;
@@ -199,19 +229,25 @@ final class WiiBase {
         return out;
     }
 
-    /** The frosted grey an empty channel slot shows: darker at the top, faint horizontal grain. */
     static int[] emptySlot(int tw, int th, float s) {
+        return emptySlot(tw, th, s, false);
+    }
+
+    /** The frosted grey an empty channel slot shows: darker at the top, faint horizontal grain. */
+    static int[] emptySlot(int tw, int th, float s, boolean dark) {
         int[] out = new int[tw * th];
         for (int y = 0; y < th; y++) {
             float t = y / (float) Math.max(1, th - 1);
-            float base = 0xCF + (0xDF - 0xCF) * t * t;
+            float base = dark ? (0x24 + (0x32 - 0x24) * t * t) : (0xCF + (0xDF - 0xCF) * t * t);
             int ry = (int) (y / s);
-            float streak = ((hash(ry, 7) & 255) / 255f - 0.5f) * 3f;
+            float streak = ((hash(ry, 7) & 255) / 255f - 0.5f) * (dark ? 2f : 3f);
             for (int x = 0; x < tw; x++) {
                 int rx = (int) (x / s);
-                float n = ((hash(rx, ry) & 255) / 255f - 0.5f) * 5f;
-                int v = clamp255(base + streak + n);
-                out[y * tw + x] = 0xFF000000 | (v << 16) | (v << 8) | v;
+                float n = ((hash(rx, ry) & 255) / 255f - 0.5f) * (dark ? 3.5f : 5f);
+                int r = clamp255(base + streak + n - (dark ? 2f : 0f));
+                int g = clamp255(base + streak + n);
+                int b = clamp255(base + streak + n + (dark ? 4f : 0f));
+                out[y * tw + x] = 0xFF000000 | (r << 16) | (g << 8) | b;
             }
         }
         return out;
