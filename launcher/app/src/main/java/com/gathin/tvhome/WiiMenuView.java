@@ -102,8 +102,8 @@ public class WiiMenuView extends View {
     static final int BTN_SD = -2;
     static final int BTN_INPUTS = -3;
     private static final long INTRO_AUTO_MS = 12_000L;
-    /** How often the clock reads the time; it shows minutes, so this only bounds how late a new minute appears. */
-    private static final long CLOCK_CHECK_MS = 250L;
+    /** Minimum interval between clock reads during continuous drawing; start() forces a refresh. */
+    private static final long CLOCK_CHECK_MS = 1000L;
 
     // What a frame draws, in drawing order.
     private static final int IT_BASE = 0, IT_TILE = 1, IT_ARROW_R = 2, IT_ARROW_L = 3, IT_BTN_L = 4, IT_BTN_R = 5,
@@ -278,6 +278,7 @@ public class WiiMenuView extends View {
     private int stillGen;
     private Still still;
 
+    private final Runnable frame = this::invalidate;
     private final Runnable blink = new Runnable() {
         @Override
         public void run() {
@@ -410,12 +411,19 @@ public class WiiMenuView extends View {
 
     void stop() {
         started = false;
+        removeCallbacks(frame);
         removeCallbacks(blink);
         removeCallbacks(autoContinue);
         removeCallbacks(hoverSound);
         okHeld = false;
         removeCallbacks(okHeldLong);
         if (carrying) putDown(false);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        stop();
+        super.onDetachedFromWindow();
     }
 
     void playIntro() {
@@ -1234,7 +1242,7 @@ public class WiiMenuView extends View {
         lastFrameNanos = now;
         boolean moving = step(dt);
 
-        if (clockStale || SystemClock.uptimeMillis() - clockAtMs >= CLOCK_CHECK_MS) updateClock();
+        if (clockDue(clockStale, SystemClock.uptimeMillis() - clockAtMs)) updateClock();
         collectItems();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && c.isHardwareAccelerated()) {
@@ -1256,9 +1264,20 @@ public class WiiMenuView extends View {
             for (int i = 0; i < itemCount; i++) drawItem(c, i);
         }
 
-        if (moving || introAlpha > 0f) postInvalidateOnAnimation();
-        else if (liveShown) postInvalidateDelayed(LIVE_FRAME_MS);
+        long delay = frameDelay(started, moving, introAlpha > 0f, liveShown);
+        if (delay == 0) postOnAnimation(frame);
+        else if (delay > 0) postDelayed(frame, delay);
         else lastFrameNanos = 0;
+    }
+
+    static long frameDelay(boolean started, boolean moving, boolean intro, boolean live) {
+        if (!started) return -1;
+        if (moving || intro) return 0;
+        return live ? LIVE_FRAME_MS : -1;
+    }
+
+    static boolean clockDue(boolean stale, long elapsedMs) {
+        return stale || elapsedMs >= CLOCK_CHECK_MS;
     }
 
     /** Lets go of the still layer while the menu is hidden; the next frame records it again. */
