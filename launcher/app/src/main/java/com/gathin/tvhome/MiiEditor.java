@@ -45,6 +45,8 @@ final class MiiEditor {
     private float time;
     private final MiiArt.Pose pose = new MiiArt.Pose();
     private final RectF r = new RectF();
+    /** Filled in again on every frame, so the drawing makes no rectangles of its own. */
+    private final RectF area = new RectF(), part = new RectF(), knob = new RectF();
     private final Path path = new Path();
 
     MiiEditor(MiiChannelView host, MiiUi ui, MiiArt art, Mii mii, boolean isNew) {
@@ -518,7 +520,8 @@ final class MiiEditor {
 
     private void drawPanel(Canvas c) {
         float s = ui.s;
-        RectF p = new RectF(ui.sr(PANEL));
+        RectF p = area;
+        p.set(ui.sr(PANEL));
         float rad = 34f * s;
         ui.fill.setColor(0xFFBECBCB);
         c.drawRoundRect(p, rad, rad, ui.fill);
@@ -533,18 +536,21 @@ final class MiiEditor {
         ui.stroke.setStrokeWidth(5f * s);
         c.drawRoundRect(p, rad, rad, ui.stroke);
         if (tab == T_INFO || tab == T_BODY) {
-            RectF in = new RectF(ui.sr(684f, 214f, 1880f, 1046f));
+            RectF in = area;
+            in.set(ui.sr(684f, 214f, 1880f, 1046f));
             ui.fill.setColor(0xFFEAF4F4);
             c.drawRoundRect(in, 30f * s, 30f * s, ui.fill);
             return;
         }
-        RectF in = new RectF(ui.sr(684f, innerTop(), 1416f, 1046f));
+        RectF in = area;
+        in.set(ui.sr(684f, innerTop(), 1416f, 1046f));
         ui.fill.setColor(0xFFEAF4F4);
         c.drawRoundRect(in, 30f * s, 30f * s, ui.fill);
         if (colorProp() >= 0) {
             int nc = palette(colorProp()).length;
             float bottom = nc > 4 && nc != 3 ? 236f + 2 * 76f + 24f + 22f : 236f + 76f + 22f;
-            RectF b = new RectF(ui.sr(SIDE_L, 214f, SIDE_R, bottom));
+            RectF b = part;
+            b.set(ui.sr(SIDE_L, 214f, SIDE_R, bottom));
             ui.fill.setColor(0xFFEEF7F7);
             c.drawRoundRect(b, 26f * s, 26f * s, ui.fill);
         }
@@ -552,12 +558,14 @@ final class MiiEditor {
 
     private void drawTabs(Canvas c) {
         float s = ui.s;
-        RectF frame = new RectF(ui.sr(14f, -40f, 1906f, 168f));
+        RectF frame = part;
+        frame.set(ui.sr(14f, -40f, 1906f, 168f));
         ui.box(c, frame, 30f * s, 0xFFF4FAF9, 0xFFE3EDEC, 0xFFB4C4C3, 4f * s);
         for (MiiUi.Item it : els) {
             if (it.kind != K_TAB) continue;
             boolean sel = it.a == tab;
-            RectF t = new RectF(ui.sr(it.r));
+            RectF t = area;
+            t.set(ui.sr(it.r));
             float sc = 1f + 0.04f * it.lift;
             int save = c.save();
             c.scale(sc, sc, t.centerX(), t.centerY());
@@ -722,7 +730,8 @@ final class MiiEditor {
 
     private void drawItem(Canvas c, MiiUi.Item it) {
         float s = ui.s;
-        RectF b = new RectF(ui.sr(it.r));
+        RectF b = area;
+        b.set(ui.sr(it.r));
         float lf = it.lift;
         float sc = 1f + 0.05f * lf;
         int save = c.save();
@@ -772,7 +781,8 @@ final class MiiEditor {
                 boolean sel = mii.v[prop] == it.a;
                 float rad = 14f * s;
                 if (sel) {
-                    RectF o = new RectF(b);
+                    RectF o = part;
+                    o.set(b);
                     o.inset(-7f * s, -7f * s);
                     ui.fill.setColor(0xFF00C896);
                     c.drawRoundRect(o, rad + 6f * s, rad + 6f * s, ui.fill);
@@ -928,16 +938,18 @@ final class MiiEditor {
 
     private void drawSlider(Canvas c, MiiUi.Item it) {
         float s = ui.s;
-        RectF b = new RectF(ui.sr(it.r));
+        RectF b = area;
+        b.set(ui.sr(it.r));
         ui.glow(c, b, 30f * s, it.lift);
         float l = b.left + 110f * s, rr = b.right - 110f * s, cy = b.centerY();
-        RectF track = new RectF(l, cy - 16f * s, rr, cy + 16f * s);
+        RectF track = part;
+        track.set(l, cy - 16f * s, rr, cy + 16f * s);
         ui.box(c, track, 16f * s, 0xFF9FB2B1, 0xFFC4D2D1, 0xFF647B79, 3f * s);
         float t = mii.v[it.a] / 127f;
         float kx = l + (rr - l) * t;
         ui.fill.setColor(0x30000000);
         c.drawCircle(kx + 3f * s, cy + 5f * s, 34f * s, ui.fill);
-        RectF knob = new RectF(kx - 34f * s, cy - 34f * s, kx + 34f * s, cy + 34f * s);
+        knob.set(kx - 34f * s, cy - 34f * s, kx + 34f * s, cy + 34f * s);
         ui.box(c, knob, 34f * s, 0xFF29C795, 0xFF00936D, 0xFFFFFFFF, 5f * s);
         boolean tall = it.a == Mii.HEIGHT;
         float small = b.height() * 0.42f, big = b.height() * 0.62f;
@@ -965,10 +977,12 @@ final class MiiEditor {
         ui.label(c, host.str(R.string.mii_fav_color), 720f, 820f, 40f, ink, Paint.Align.LEFT, true);
         float s = ui.s;
         int day = mii.v[Mii.DAY], month = mii.v[Mii.MONTH];
-        RectF d = new RectF(ui.sr(1106f, 602f, 1262f, 702f));
+        RectF d = area;
+        d.set(ui.sr(1106f, 602f, 1262f, 702f));
         ui.box(c, d, 20f * s, 0xFFFFFFFF, 0xFFF0F5F5, 0xFF647B79, 4f * s);
         ui.label(c, day == 0 ? "--" : String.valueOf(day), 1184f, 668f, 46f, 0xFF3A4446, Paint.Align.CENTER, true);
-        RectF m = new RectF(ui.sr(1536f, 602f, 1692f, 702f));
+        RectF m = part;
+        m.set(ui.sr(1536f, 602f, 1692f, 702f));
         ui.box(c, m, 20f * s, 0xFFFFFFFF, 0xFFF0F5F5, 0xFF647B79, 4f * s);
         ui.label(c, month == 0 ? "--" : String.valueOf(month), 1614f, 668f, 46f, 0xFF3A4446, Paint.Align.CENTER, true);
         ui.label(c, host.str(R.string.mii_day), 1184f, 594f, 24f, 0xFF7A8C8B, Paint.Align.CENTER, true);
