@@ -488,6 +488,8 @@ final class MiiChannelView extends View {
         private final StringBuilder text;
         private final List<MiiUi.Item> keys = new ArrayList<>();
         private final float[] lift;
+        /** The text field and a key in screen px, filled in again on every frame. */
+        private final RectF field = new RectF(), key = new RectF();
         private int focus = 10;
         private boolean upper, accent;
         private float appear, time;
@@ -532,8 +534,9 @@ final class MiiChannelView extends View {
         @Override
         public void draw(Canvas c) {
             int save = ui.dim(c, appear);
-            ui.darkPanel(c, new RectF(ui.sr(250f, 96f, 1670f, 968f)), prompt);
-            RectF f = new RectF(ui.sr(KB_X0, 250f, 1920f - KB_X0, 352f));
+            ui.darkPanel(c, ui.sr(250f, 96f, 1670f, 968f), prompt);
+            RectF f = field;
+            f.set(ui.sr(KB_X0, 250f, 1920f - KB_X0, 352f));
             ui.box(c, f, 24f * s, 0xFFFFFFFF, 0xFFE6EEEE, 0xFF2A3436, 4f * s);
             String str = text.toString();
             ui.label(c, str, KB_X0 + 36f, 320f, 54f, 0xFF333B3D, Paint.Align.LEFT, true);
@@ -552,7 +555,8 @@ final class MiiChannelView extends View {
         }
 
         private void drawKey(Canvas c, MiiUi.Item it, float lf) {
-            RectF b = new RectF(ui.sr(it.r));
+            RectF b = key;
+            b.set(ui.sr(it.r));
             float sc = 1f + 0.07f * lf;
             int sv = c.save();
             c.scale(sc, sc, b.centerX(), b.centerY());
@@ -718,6 +722,8 @@ final class MiiChannelView extends View {
         private final Bitmap[] front = new Bitmap[8], back = new Bitmap[8];
         private final List<MiiUi.Item> items = new ArrayList<>();
         private final float[] lift = new float[10];
+        /** A tile or a button in screen px, filled in again on every frame. */
+        private final RectF tile = new RectF();
         private int focus;
         private float appear;
 
@@ -753,19 +759,21 @@ final class MiiChannelView extends View {
         @Override
         public void draw(Canvas c) {
             int save = ui.dim(c, appear);
-            ui.darkPanel(c, new RectF(ui.sr(LA_X0 - 74f, 60f, 1920f - LA_X0 + 74f, 1020f)),
-                    str(R.string.mii_lookalike_title));
+            ui.darkPanel(c, ui.sr(LA_X0 - 74f, 60f, 1920f - LA_X0 + 74f, 1020f), str(R.string.mii_lookalike_title));
             for (int i = 0; i < 8; i++) {
                 if (i != focus) drawTile(c, i);
             }
             if (focus < 8) drawTile(c, focus);
-            ui.pill(c, new RectF(ui.sr(items.get(8).r)), str(R.string.mii_more), lift[8], 44f);
-            ui.pill(c, new RectF(ui.sr(items.get(9).r)), str(R.string.mii_back), lift[9], 44f);
+            tile.set(ui.sr(items.get(8).r));
+            ui.pill(c, tile, str(R.string.mii_more), lift[8], 44f);
+            tile.set(ui.sr(items.get(9).r));
+            ui.pill(c, tile, str(R.string.mii_back), lift[9], 44f);
             c.restoreToCount(save);
         }
 
         private void drawTile(Canvas c, int i) {
-            RectF b = new RectF(ui.sr(items.get(i).r));
+            RectF b = tile;
+            b.set(ui.sr(items.get(i).r));
             float lf = lift[i], sc = 1f + 0.06f * lf, rad = 30f * s;
             int sv = c.save();
             c.scale(sc, sc, b.centerX(), b.centerY());

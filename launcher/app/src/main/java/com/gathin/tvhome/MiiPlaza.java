@@ -92,6 +92,8 @@ final class MiiPlaza {
     private final Random rnd = new Random();
     private final float[] pt = new float[3];
     private final RectF r = new RectF();
+    /** A name tag or a chat bubble in screen px, filled in again on every frame. */
+    private final RectF tag = new RectF();
     private final Paint bmp = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
     private final float[] btnLift = new float[BUTTONS.length];
     private final float[] sortLift = new float[5];
@@ -1110,7 +1112,8 @@ final class MiiPlaza {
             float cx = sp.sx, bottom = topY - 16f;
             float a = sp.hover;
             int save = c.saveLayerAlpha(0, 0, c.getWidth(), c.getHeight(), Math.round(255 * a));
-            RectF rr = new RectF((cx - w / 2f) * s, (bottom - h) * s, (cx + w / 2f) * s, bottom * s);
+            RectF rr = tag;
+            rr.set((cx - w / 2f) * s, (bottom - h) * s, (cx + w / 2f) * s, bottom * s);
             ui.fill.setColor(0x30000000);
             rr.offset(0, 5f * s);
             c.drawRoundRect(rr, 24f * s, 24f * s, ui.fill);
@@ -1129,7 +1132,8 @@ final class MiiPlaza {
         if (sp.bubble != null && sp.hover < 0.02f) {
             float cx = sp.sx + (sp.view == MiiArt.LEFT ? -0.4f : 0.4f) * u, by = topY - 8f;
             float bw = 70f, bh = 56f;
-            RectF rr = new RectF((cx - bw / 2f) * s, (by - bh) * s, (cx + bw / 2f) * s, by * s);
+            RectF rr = tag;
+            rr.set((cx - bw / 2f) * s, (by - bh) * s, (cx + bw / 2f) * s, by * s);
             ui.box(c, rr, bh * 0.5f * s, 0xFFFFFFFF, 0xFFF0F4F4, 0xFFA6B2B2, 3f * s);
             ui.label(c, sp.bubble, cx, by - 16f, 34f, 0xFF607070, Paint.Align.CENTER, true);
         }
@@ -1167,7 +1171,7 @@ final class MiiPlaza {
             int count = 0;
             for (Sprite sp : sprites) if (sp.state != POOF) count++;
             ui.countBubble(c, 490f, 967f, count);
-            for (int i = 0; i < 5; i++) ui.darkPill(c, new RectF(sortRect(i)), SORT_ICONS[i], sortLift[i]);
+            for (int i = 0; i < 5; i++) ui.darkPill(c, sortRect(i), SORT_ICONS[i], sortLift[i]);
         }
     }
 }
