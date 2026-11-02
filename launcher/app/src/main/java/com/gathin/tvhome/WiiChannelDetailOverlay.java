@@ -130,6 +130,9 @@ public class WiiChannelDetailOverlay extends FrameLayout {
     private boolean channelVideoPrepared = false;
     private boolean channelVideoCompleted = false;
     private MediaPlayer carouselVideoPlayer;
+    private MediaPlayer appStartPlayer;
+    private MediaPlayer loadingPlayer;
+    private boolean isLaunchingApp = false;
 
     private List<File> videoFiles = new ArrayList<>();
     private String selectedVideoPath;
@@ -311,6 +314,7 @@ public class WiiChannelDetailOverlay extends FrameLayout {
             cachedIsBanner = false;
         }
 
+        isLaunchingApp = false;
         setVisibility(View.VISIBLE);
         refreshMedia();
 
@@ -330,10 +334,10 @@ public class WiiChannelDetailOverlay extends FrameLayout {
         });
         zoomAnimator.start();
 
-        // Initial hand position right on Start button
+        // Initial hand position right on Iniciar button, positioned below text
         float btnY = (REF_H - 145f) * scale;
         handX = 1400f * scale;
-        handY = btnY - 72f * scale;
+        handY = btnY + 30f * scale;
 
         // 2. Single entrance pop-in animation (remains completely static when finished)
         playEntranceAnimation();
@@ -419,6 +423,7 @@ public class WiiChannelDetailOverlay extends FrameLayout {
         if (entranceAnimator != null) entranceAnimator.cancel();
         if (handAnimator != null) handAnimator.cancel();
         stopAllMedia();
+        isLaunchingApp = false;
         isOpen = false;
         setVisibility(View.GONE);
         if (listener != null) {
@@ -544,32 +549,32 @@ public class WiiChannelDetailOverlay extends FrameLayout {
         if (currentState == STATE_CHANNEL) {
             if (channelFocus == 0) {
                 tx = 220f * scale;
-                ty = btnY - 72f * scale;
+                ty = btnY + 30f * scale;
             } else if (channelFocus == 1) {
                 tx = 640f * scale;
-                ty = btnY - 72f * scale;
+                ty = btnY + 30f * scale;
             } else {
                 tx = 1400f * scale;
-                ty = btnY - 72f * scale;
+                ty = btnY + 30f * scale;
             }
         } else if (currentState == STATE_CONFIG) {
             if (configFocus == 0) {
                 tx = w / 2f;
-                ty = 320f * scale - 60f * scale;
+                ty = 320f * scale + 30f * scale;
             } else if (configFocus == 1) {
                 tx = w / 2f;
-                ty = 480f * scale - 60f * scale;
+                ty = 480f * scale + 30f * scale;
             } else {
                 tx = w / 2f;
-                ty = btnY - 72f * scale;
+                ty = btnY + 30f * scale;
             }
         } else if (currentState == STATE_VIDEO_PICKER) {
             if (videoBottomFocus == 1) {
                 tx = 640f * scale;
-                ty = btnY - 72f * scale;
+                ty = btnY + 30f * scale;
             } else if (videoBottomFocus == 2) {
                 tx = 1400f * scale;
-                ty = btnY - 72f * scale;
+                ty = btnY + 30f * scale;
             } else {
                 tx = w / 2f;
                 ty = 420f * scale;
@@ -585,7 +590,7 @@ public class WiiChannelDetailOverlay extends FrameLayout {
     // --- BULLETPROOF REMOTE CONTROL DPAD & WIIMOTE NAVIGATION ---
 
     public void pointerMove(float dx, float dy) {
-        if (!isOpen || isGeneratingThumbnail) return;
+        if (!isOpen || isGeneratingThumbnail || isLaunchingApp) return;
         float w = getWidth() > 0 ? getWidth() : REF_W * scale;
         float h = getHeight() > 0 ? getHeight() : REF_H * scale;
         handX = Math.max(0f, Math.min(w, handX + dx * scale));
@@ -610,7 +615,7 @@ public class WiiChannelDetailOverlay extends FrameLayout {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (!isOpen) return false;
-        if (isGeneratingThumbnail) return true;
+        if (isGeneratingThumbnail || isLaunchingApp) return true;
         handX = event.getX();
         handY = event.getY();
         int action = event.getAction();
@@ -662,7 +667,7 @@ public class WiiChannelDetailOverlay extends FrameLayout {
 
     public boolean handleKeyDown(int keyCode, KeyEvent event) {
         if (!isOpen) return false;
-        if (isGeneratingThumbnail) return true;
+        if (isGeneratingThumbnail || isLaunchingApp) return true;
 
         // Never consume HOME or APP_SWITCH; let system/activity return to all apps!
         if (keyCode == KeyEvent.KEYCODE_HOME || keyCode == KeyEvent.KEYCODE_APP_SWITCH) {
@@ -809,12 +814,10 @@ public class WiiChannelDetailOverlay extends FrameLayout {
                 // Wii Menu / Volver -> Zoom Out
                 startZoomOut();
             } else if (channelFocus == 2) {
-                // Start / Iniciar -> Launch App
-                if (listener != null && currentChannel != null) {
-                    if (sounds != null) sounds.play(WiiSounds.START);
-                    stopAllMedia();
-                    listener.onStartApp(currentChannel);
-                }
+                // Start / Iniciar -> Launch App with app_start sound
+                if (isLaunchingApp) return;
+                isLaunchingApp = true;
+                launchSelectedAppWithSound();
             }
         } else if (currentState == STATE_CONFIG) {
             if (configFocus == 0) {
@@ -885,6 +888,7 @@ public class WiiChannelDetailOverlay extends FrameLayout {
     }
 
     public void handleBack() {
+        if (isGeneratingThumbnail || isLaunchingApp) return;
         if (currentState == STATE_VIDEO_PICKER) {
             stopCarouselVideo();
             if (sounds != null) sounds.play(WiiSounds.BACK);
@@ -1029,6 +1033,97 @@ public class WiiChannelDetailOverlay extends FrameLayout {
     public void stopAllMedia() {
         stopChannelVideo();
         stopCarouselVideo();
+        stopLoadingSound();
+    }
+
+    private MediaPlayer createMediaPlayerForSound(String fileName, int rawResId) {
+        File customFile = new File(WiiChannelCustomization.getSoundsDir(), fileName);
+        if (!customFile.exists()) {
+            customFile = new File("/storage/emulated/0/sounds", fileName);
+        }
+        if (!customFile.exists()) {
+            customFile = new File("/sdcard/sounds", fileName);
+        }
+        try {
+            MediaPlayer mp;
+            if (customFile.exists() && customFile.length() > 0) {
+                mp = new MediaPlayer();
+                mp.setAudioAttributes(new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_GAME)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build());
+                mp.setDataSource(customFile.getAbsolutePath());
+                mp.prepare();
+            } else {
+                mp = MediaPlayer.create(getContext(), rawResId);
+                if (mp != null) {
+                    mp.setAudioAttributes(new AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_GAME)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build());
+                }
+            }
+            return mp;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private void launchSelectedAppWithSound() {
+        stopChannelVideo();
+        playAppStartSound();
+        if (listener != null && currentChannel != null) {
+            listener.onStartApp(currentChannel);
+        }
+    }
+
+    private void playAppStartSound() {
+        if (appStartPlayer != null) {
+            try {
+                if (appStartPlayer.isPlaying()) appStartPlayer.stop();
+                appStartPlayer.release();
+            } catch (Throwable ignored) {}
+            appStartPlayer = null;
+        }
+        try {
+            appStartPlayer = createMediaPlayerForSound("app_start.wav", R.raw.app_start);
+            if (appStartPlayer != null) {
+                appStartPlayer.setLooping(false);
+                appStartPlayer.setOnCompletionListener(mp -> {
+                    try { mp.release(); } catch (Throwable ignored) {}
+                    appStartPlayer = null;
+                });
+                appStartPlayer.setOnErrorListener((mp, what, extra) -> {
+                    try { mp.release(); } catch (Throwable ignored) {}
+                    appStartPlayer = null;
+                    return true;
+                });
+                appStartPlayer.start();
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private void startLoadingSound() {
+        stopLoadingSound();
+        try {
+            loadingPlayer = createMediaPlayerForSound("loading.wav", R.raw.loading);
+            if (loadingPlayer != null) {
+                loadingPlayer.setLooping(true);
+                loadingPlayer.start();
+            }
+        } catch (Throwable ignored) {
+            stopLoadingSound();
+        }
+    }
+
+    private void stopLoadingSound() {
+        if (loadingPlayer != null) {
+            try {
+                if (loadingPlayer.isPlaying()) loadingPlayer.stop();
+                loadingPlayer.release();
+            } catch (Throwable ignored) {}
+            loadingPlayer = null;
+        }
     }
 
     private void applyVideoSelection() {
@@ -1061,6 +1156,7 @@ public class WiiChannelDetailOverlay extends FrameLayout {
         isGeneratingThumbnail = true;
         generatingSpinnerAngle = 0f;
         generatingProgress = 0f;
+        startLoadingSound();
         invalidate();
 
         final String videoToProcess = selectedVideoPath;
@@ -1077,6 +1173,7 @@ public class WiiChannelDetailOverlay extends FrameLayout {
                 android.util.Log.e("WiiChannelDetailOverlay", "Error generating thumbnail for " + videoToProcess, e);
             }
             mainHandler.post(() -> {
+                stopLoadingSound();
                 isGeneratingThumbnail = false;
                 WiiChannelCustomization.setCustomVideo(getContext(), channelKeyToApply, videoToProcess);
                 switchToState(STATE_CHANNEL);

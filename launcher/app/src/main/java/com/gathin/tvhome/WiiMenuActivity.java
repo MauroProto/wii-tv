@@ -280,10 +280,8 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
                         hdmiTvView.setStreamVolume(1.0f);
                     } catch (Throwable ignored) {}
                 }
-                if (channelOverlay != null) {
-                    channelOverlay.setVisibility(View.GONE);
-                }
-                open(channel.intent, true);
+                // Do not hide channelOverlay here; keep it visible so transition is direct from channel UI to app
+                open(channel.intent, false);
             }
 
             @Override
@@ -1085,9 +1083,6 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     protected void onPause() {
         super.onPause();
         resumed = false;
-        if (channelOverlay != null && channelOverlay.isOpen()) {
-            channelOverlay.closeImmediately();
-        }
         music.pause();
         fileMusic.stop();
         menu.stop();
@@ -1109,6 +1104,9 @@ public class WiiMenuActivity extends Activity implements WiiMenuView.Listener {
     @Override
     protected void onStop() {
         super.onStop();
+        if (channelOverlay != null && channelOverlay.isOpen()) {
+            channelOverlay.closeImmediately();
+        }
         int slot = menu.handSlot();
         if (slot == Integer.MIN_VALUE) return;
         getSharedPreferences(PREFS, MODE_PRIVATE).edit()

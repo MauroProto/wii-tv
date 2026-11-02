@@ -24,6 +24,7 @@ public final class WiiChannelCustomization {
     public static final String PRIMARY_MEDIA_ROOT = "/storage/emulated/0/wiimedia";
     public static final String VIDEOS_DIR_NAME = "videos";
     public static final String MINIATURAS_DIR_NAME = "miniaturas";
+    public static final String SOUNDS_DIR_NAME = "sounds";
 
     private WiiChannelCustomization() {}
 
@@ -48,6 +49,23 @@ public final class WiiChannelCustomization {
      * Returns the directory for thumbnail files (/storage/emulated/0/wiimedia/videos/miniaturas/).
      * Ensures parent folders exist.
      */
+    /**
+     * Returns the directory for custom sound files (/storage/emulated/0/wiimedia/sounds/).
+     * Ensures parent folders exist.
+     */
+    public static File getSoundsDir() {
+        File dir = new File(PRIMARY_MEDIA_ROOT, SOUNDS_DIR_NAME);
+        if (!dir.exists()) {
+            boolean created = dir.mkdirs();
+            if (!created) {
+                File fallback = new File(Environment.getExternalStorageDirectory(), "wiimedia/" + SOUNDS_DIR_NAME);
+                if (!fallback.exists()) fallback.mkdirs();
+                return fallback;
+            }
+        }
+        return dir;
+    }
+
     public static File getThumbnailsDir() {
         File dir = new File(getVideosDir(), MINIATURAS_DIR_NAME);
         if (!dir.exists()) {

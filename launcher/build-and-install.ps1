@@ -78,12 +78,20 @@ if ($start -notmatch 'Status: ok' -or $start -match '(?m)^Error') { throw "the n
     'pm grant com.gathin.tvhome android.permission.READ_MEDIA_VIDEO 2>/dev/null; echo video-granted',
     'pm grant com.gathin.tvhome android.permission.READ_EXTERNAL_STORAGE 2>/dev/null; echo storage-granted',
     'appops set com.gathin.tvhome MANAGE_EXTERNAL_STORAGE allow',
+    'mkdir -p /storage/emulated/0/wiimedia/sounds /storage/emulated/0/wiimedia/videos/miniaturas 2>/dev/null; echo dir-ready',
     'cmd package compile -m speed -f com.gathin.tvhome',
     $disableStock,
     'cmd package set-home-activity --user 0 com.gathin.tvhome/.WiiMenuActivity',
     'am force-stop com.gathin.tvhome',
     'am start -a android.intent.action.MAIN -c android.intent.category.HOME'
 ) | & $py -I ..\tools\tv.py --batch
+if (Test-Path ..\sounds\app_start.wav) {
+    & $py -I ..\tools\b64push.py ..\sounds\app_start.wav /storage/emulated/0/wiimedia/sounds/app_start.wav
+}
+if (Test-Path ..\sounds\loading.wav) {
+    & $py -I ..\tools\b64push.py ..\sounds\loading.wav /storage/emulated/0/wiimedia/sounds/loading.wav
+}
+
 # Order matters, see build-and-install.sh: start the new launcher, disable the stock one, set the
 # preference last, then check where Home ended up and put the stock launcher back if it is not ours.
 $homeNow = (& $py -I ..\tools\tv.py 'cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN' | Where-Object { $_.Trim() } | Select-Object -Last 1).Trim()
