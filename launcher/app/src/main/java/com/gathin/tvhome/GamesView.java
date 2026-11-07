@@ -119,7 +119,7 @@ final class GamesView extends View {
         this.sounds = sounds;
         Typeface f;
         try {
-            f = context.getResources().getFont(R.font.outfit_medium);
+            f = FontCompat.load(context.getResources(), R.font.outfit_medium);
         } catch (RuntimeException e) {
             f = Typeface.SANS_SERIF;
         }
